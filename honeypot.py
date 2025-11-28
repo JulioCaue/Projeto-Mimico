@@ -31,12 +31,14 @@ class Honeypot:
                     else:
                         if recebida!=('quit'):
                             if recebida.startswith('user'):
-                                usuario_tentado=recebida
+                                usuario_tentado=recebida.replace('user',' ').strip()
                                 socket_comunicação.send('331'.encode())
                             elif recebida.startswith('pass'):
-                                senha_tentada=recebida
+                                senha_tentada=recebida.replace('pass',' ').strip()
                                 socket_comunicação.send('530'.encode())
-                                acessos=f'[{datetime.datetime.now()}]: [{endereço}] - [Usuario tentado: [{usuario_tentado}] - [Senha tentada: [{senha_tentada}]'
+                                data_formatada = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                ip_limpo = endereço[0]
+                                acessos=f'[{data_formatada}] {ip_limpo} - [USER: {usuario_tentado}] - [PASS: {senha_tentada}]'
                                 if senha_tentada != 'null' and usuario_tentado != 'null':
                                     with open ('Honeypot.log','a') as log:
                                         log.write (f'{acessos}\n')
