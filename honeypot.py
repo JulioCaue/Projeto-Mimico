@@ -23,8 +23,9 @@ class Honeypot:
 
             try:
                 while True:
-                    recebida=socket_comunicação.recv(1024).decode()
+                    recebida=socket_comunicação.recv(1024).decode().strip()
                     if not recebida:
+                        socket_comunicação.close()
                         break
                         
                     else:

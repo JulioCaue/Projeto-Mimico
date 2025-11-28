@@ -11,7 +11,7 @@ class Invasor:
         while True:
             mensagem_recebida=self.cliente.recv(1024).decode()
             print(mensagem_recebida)
-            self.cliente.send(input('>>> ').encode().strip())
+            self.cliente.send(input('>>> ').encode())
             if mensagem_recebida=='221':
                 break
 
