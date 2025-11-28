@@ -12,13 +12,6 @@ class Honeypot:
 
     def rodar_honeypot(self):
         while  True:
-            if os.path.exists('honeypot.log'):
-                lista_de_endereços=[]
-                with open ('Honeypot.log','r') as log:
-                    for linha in log:
-                        lista_de_endereços.append(linha.strip())
-            else:
-                lista_de_endereços=[]
             
             print('Esperando Conexão...')
             socket_comunicação,endereço=self.servidor.accept()
@@ -31,7 +24,10 @@ class Honeypot:
             try:
                 while True:
                     recebida=socket_comunicação.recv(1024).decode()
-                    if not recebida==False:
+                    if not recebida:
+                        break
+                        
+                    else:
                         if recebida!=('quit'):
                             if recebida.startswith('user'):
                                 usuario_tentado=recebida
@@ -39,12 +35,10 @@ class Honeypot:
                             elif recebida.startswith('pass'):
                                 senha_tentada=recebida
                                 socket_comunicação.send('530'.encode())
-                                acessos=f'[{datetime.datetime.now()}]: [{endereço}] - [Usuario tentado: {usuario_tentado}] - [Senha tentada: {senha_tentada}]'
-                                lista_de_endereços.append(acessos)
+                                acessos=f'[{datetime.datetime.now()}]: [{endereço}] - [Usuario tentado: [{usuario_tentado}] - [Senha tentada: [{senha_tentada}]'
                                 if senha_tentada != 'null' and usuario_tentado != 'null':
-                                    with open ('Honeypot.log','w') as log:
-                                        for endereços in lista_de_endereços:
-                                            log.write (f'{endereços}\n')
+                                    with open ('Honeypot.log','a') as log:
+                                        log.write (f'{acessos}\n')
                             else:
                                 socket_comunicação.send('500'.encode())
                             
@@ -53,10 +47,6 @@ class Honeypot:
                             socket_comunicação.close()
                             print (f'conexão encerrada com {endereço}')
                             break
-                    else:
-                        socket_comunicação.close()
-                        print (f'conexão encerrada com {endereço}')
-                        break
             except Exception as erro:
                 print(f'Um erro ocorreu: {erro}')
 
