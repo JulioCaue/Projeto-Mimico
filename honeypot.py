@@ -16,6 +16,7 @@ class Honeypot:
         usuario_tentado='null'
         senha_tentada='null'
         print(f'conexão estabelecida com endereço {endereço}.')
+        socket_comunicação.send('220 welcome'.encode())
         while  True:
             lista_de_endereços=[]
             if os.path.exists('honeypot.log'):

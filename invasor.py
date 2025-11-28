@@ -9,9 +9,9 @@ class Invasor:
     def invadir(self):
         self.cliente.connect((self.host,self.porta))
         while True:
-            self.cliente.send(input().encode())
             mensagem_recebida=self.cliente.recv(1024).decode()
             print(mensagem_recebida)
+            self.cliente.send(input('>>> ').encode())
             if mensagem_recebida=='221':
                 break
 
