@@ -45,7 +45,7 @@ class Honeypot:
                                 data_formatada = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                                 ip_limpo = endereço[0]
                                 if usuario_tentado != 'null' and senha_tentada != 'null':
-                                    acessos=f'[{data_formatada}] {ip_limpo} - USER: {usuario_tentado}] - PASS: {senha_tentada}'
+                                    acessos=f'[{data_formatada}] {ip_limpo} - USER: {usuario_tentado} - PASS: {senha_tentada}'
                                     with open ('Honeypot.log','a') as log:
                                         log.write (f'{acessos}\n')
                                         usuario_tentado='null'
@@ -91,11 +91,12 @@ class Honeypot:
 
         # Mostra o erro  caso ocorra
         except Exception as erro:
-            data_formatada = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            ip_limpo = endereço[0]
-            acessos=f'[{data_formatada}] {ip_limpo} - Usuario cancelou a conexão. - USER: {usuario_tentado} - PASS: {senha_tentada}'
-            with open ('Honeypot.log','a') as log:
-                log.write (f'{acessos}\n')
+            if senha_tentada!='null':
+                data_formatada = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                ip_limpo = endereço[0]
+                acessos=f'[{data_formatada}] {ip_limpo} - Usuario cancelou a conexão. - USER: {usuario_tentado} - PASS: {senha_tentada}'
+                with open ('Honeypot.log','a') as log:
+                    log.write (f'{acessos}\n')
             socket_comunicação.close()
             self.conexões_ativas-=1
             print(f'Um erro ocorreu: {erro}')
