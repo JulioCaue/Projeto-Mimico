@@ -1,2 +1,5 @@
 .venv/
 Honeypot.log
+cmd.exe
+nomes_de_conta_servidor.txt
+senhas_fracas_servidor.txt
