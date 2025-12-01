@@ -49,7 +49,6 @@ class Invasor:
                         break
                     except:
                         time.sleep(2)
-                        break
 
                         
             #tempo de espera por visibilidade

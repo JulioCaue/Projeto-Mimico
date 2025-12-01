@@ -70,15 +70,14 @@ class Honeypot:
 
     def rodar_honeypot(self):
         while True:
-            if self.conexões_ativas<3:
-                print('Esperando Conexão...')
-                socket_comunicação,endereço=self.servidor.accept()
+            print('Esperando Conexão...')
+            socket_comunicação,endereço=self.servidor.accept()
+            if self.conexões_ativas<3:        
                 self.conexões_ativas+=1
                 print(f'conexão estabelecida com endereço {endereço}. {self.conexões_ativas} de 3 estão ativas.')
                 t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,endereço),daemon=True)
                 t.start()
             else:
-                socket_comunicação,endereço=self.servidor.accept()
                 socket_comunicação.send("421 Too many users, try again later\r\n".encode())
                 socket_comunicação.close()
                 print ('Maximo de conexões ativas foi atingido. Esperando liberação...')
