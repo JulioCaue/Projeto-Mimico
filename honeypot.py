@@ -68,13 +68,17 @@ class Honeypot:
             print(f'Um erro ocorreu: {erro}')
             print (f'conexão encerrada com {endereço}')
 
-    def rodar_honeypot(self):
+    def rodar_honeypot(self,maximo_de_conexões):
+        lista_de_conexões=[]
+        print('Esperando Conexão...')
         while True:
-            print('Esperando Conexão...')
             socket_comunicação,endereço=self.servidor.accept()
-            if self.conexões_ativas<3:        
+            if self.conexões_ativas<=maximo_de_conexões:        
                 self.conexões_ativas+=1
-                print(f'conexão estabelecida com endereço {endereço}. {self.conexões_ativas} de 3 estão ativas.')
+                lista_de_conexões.append(self.conexões_ativas)
+                if len(lista_de_conexões)==5 or self.conexões_ativas+1==maximo_de_conexões:
+                    print(f'conexão estabelecida com endereço {endereço}. {self.conexões_ativas} de {maximo_de_conexões} estão ativas.')
+                    lista_de_conexões=[]
                 t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,endereço),daemon=True)
                 t.start()
             else:
@@ -83,4 +87,6 @@ class Honeypot:
                 print ('Maximo de conexões ativas foi atingido. Esperando liberação...')
 
 servidor=Honeypot()
-servidor.rodar_honeypot()
+maximo_de_conexões=50
+
+servidor.rodar_honeypot(maximo_de_conexões)
