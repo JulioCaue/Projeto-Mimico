@@ -76,7 +76,7 @@ class Honeypot:
             if self.conexões_ativas<=maximo_de_conexões:        
                 self.conexões_ativas+=1
                 lista_de_conexões.append(self.conexões_ativas)
-                if len(lista_de_conexões)==5 or self.conexões_ativas+1==maximo_de_conexões:
+                if len(lista_de_conexões)==10 or self.conexões_ativas==maximo_de_conexões:
                     print(f'conexão estabelecida com endereço {endereço}. {self.conexões_ativas} de {maximo_de_conexões} estão ativas.')
                     lista_de_conexões=[]
                 t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,endereço),daemon=True)
@@ -87,6 +87,6 @@ class Honeypot:
                 print ('Maximo de conexões ativas foi atingido. Esperando liberação...')
 
 servidor=Honeypot()
-maximo_de_conexões=50
+maximo_de_conexões=500
 
 servidor.rodar_honeypot(maximo_de_conexões)
