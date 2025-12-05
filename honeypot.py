@@ -73,8 +73,8 @@ class Honeypot:
         print('Esperando Conexão...')
         while True:
             socket_comunicação,endereço=self.servidor.accept()
+            self.conexões_ativas+=1
             if self.conexões_ativas<=maximo_de_conexões:        
-                self.conexões_ativas+=1
                 lista_de_conexões.append(self.conexões_ativas)
                 if len(lista_de_conexões)==10 or self.conexões_ativas==maximo_de_conexões:
                     print(f'conexão estabelecida com endereço {endereço}. {self.conexões_ativas} de {maximo_de_conexões} estão ativas.')

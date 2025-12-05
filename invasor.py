@@ -2,6 +2,7 @@ import socket
 import time
 import threading
 
+
 class Enxame_de_drones_invasores:
     def __init__(self):
         self.host='localhost'
@@ -11,6 +12,7 @@ class Enxame_de_drones_invasores:
         self.lista_de_nomes=[]
         self.lista_de_senhas=[]
         
+        #re-escreve o arquivo de texto com base no usuario e senha usada
         with open('nomes_de_conta_servidor.txt','r') as f:
             for nome in f:
                 self.lista_de_nomes.append(nome.strip())
@@ -18,11 +20,14 @@ class Enxame_de_drones_invasores:
             for senha in f:
                 self.lista_de_senhas.append(senha.strip())
 
+    #cria o socket reserva para se conectar após uma conexão ser liberada
     def drone_esperando(self, socket_invasor):
         socket_invasor.close()
         invasor_esperando = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print('servidor lotado. Esperando liberar...')
         time.sleep(2)
+
+        #Loop de logica dos robos que estão esperando
         while True:
             try:
                 invasor_esperando.connect((self.host, self.porta))
@@ -32,6 +37,8 @@ class Enxame_de_drones_invasores:
                 time.sleep(2)
         return invasor_esperando
 
+
+    #Loop principal dos robos
     def drone_individual(self):
         index_nomes_atual = 0
         index_senha_atual = 0
