@@ -16,6 +16,7 @@ class Logica_de_arquivos():
         lista_de_arquivos=[]
         
     #Diretorio antigo é o diretorio atual -> diretorio atual vira diretorio antigo + diretorio novo.
+    #'cd ' é removido antes de fazer operações com conteudo.
     def comando_cd(self,diretorio_novo):
         comando_separado=diretorio_novo.split()
         diretorio_do_comando=comando_separado[1:]
@@ -71,9 +72,15 @@ teste.comando_pwd()
 
         #To do:
             #criar uma forma de salvar estado do filesystem(???) em multiplas instancias simultaneas.
-            #pensar em como diabos fazer o mkdir
-            #alguma forma de adicionar cd ... ao comando
+                #talvez irrelevante nesse arquivo. Deixar aqui por enquanto para se lembrar
+            
+            #fazer o mkdir (make directory) (cria pasta)
+            
+            #alguma forma de adicionar cd .. ao comando cd
                 #Talvez criar uma nova função para esse comando seja melhor?
+            
+            #adicionar o retr (retrieve) (envia conteudo ao hacker)
+            #adicionar o stor (store) (recebe conteudo do hacker)
 
             
         #Notas:
