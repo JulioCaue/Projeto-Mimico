@@ -11,7 +11,7 @@ dados = {
         },
 
         "etc": {
-            "passwd": """root:x:0:0:root:/root:/bin/bash
+"passwd": """root:x:0:0:root:/root:/bin/bash
 ftp:x:1001:1001:FTP Service:/srv/ftp:/bin/false
 backup:x:1002:1002:Backup Automation:/home/backup:/bin/bash
 deploy:x:1003:1003:Deployment Service:/home/deploy:/bin/bash
