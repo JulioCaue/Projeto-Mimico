@@ -4,7 +4,7 @@ class Logica_de_arquivos():
         self.filesystem=filesystem.dados
         #Coloca diretorio padrão de inicio como o diretorio root
         self.diretorio_atual=self.filesystem['/']
-        self.caminho_atual=['/']
+        self.caminho_atual=[]
         self.retirar_comando=('')
 
     #Lista arquivos no diretorio atual. Simples
@@ -19,25 +19,35 @@ class Logica_de_arquivos():
     #'cd ' é removido antes de fazer operações com conteudo.
     def comando_cd(self,diretorio_novo):
         comando_separado=diretorio_novo.split()
+        if len(comando_separado) < 2:
+            return
+
         diretorio_do_comando=comando_separado[1:]
         diretorio_novo=''.join(diretorio_do_comando)
 
-        if diretorio_novo=="/":
-            self.diretorio_atual=self.filesystem['/']
-            self.caminho_atual=[]
-        elif diretorio_novo.endswith('..'):
-            del self.caminho_atual[-1]
-        else:
-            if self.caminho_atual==['/']:
+        if diretorio_novo == '..':
+            if not self.caminho_atual:
+                print ('erro')
+            else:
+                self.caminho_atual.pop()
+                self.diretorio_atual=self.filesystem['/']
+                for pasta in self.caminho_atual:
+                    self.diretorio_atual=self.diretorio_atual[pasta]
+
+        elif diretorio_novo in self.diretorio_atual:
+            conteudo = self.diretorio_atual[diretorio_novo]
+            if isinstance(conteudo, dict):
+                self.diretorio_atual=conteudo
                 self.caminho_atual.append(diretorio_novo)
             else:
-                self.caminho_atual.append('/'+diretorio_novo)
-            diretorio_antigo=self.diretorio_atual
-            self.diretorio_atual=([diretorio_antigo][0][diretorio_novo])
-    
+                print('erro: é arquivo')
+        else:
+            print('erro: não existe')
+
     #Lista caminho atual
     def comando_pwd(self):
-        print (''.join(self.caminho_atual))
+        print ('/' + '/'.join(self.caminho_atual))
+
 
 teste=Logica_de_arquivos()
 
@@ -56,11 +66,8 @@ diretorio2='shadow'''
 
 while True:
     diretorio_novo=input('comando aqui: ')
-    if diretorio_novo=='1':
-        break
-    else:
-        teste.comando_cd(diretorio_novo)
-        teste.comando_list()
+    teste.comando_cd(diretorio_novo)
+    teste.comando_list()
 
 
 #diretorio3='shadow'
