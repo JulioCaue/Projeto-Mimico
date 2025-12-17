@@ -12,8 +12,7 @@ class Logica_de_arquivos():
         lista_de_arquivos=[]
         for arquivo in self.diretorio_atual:
             lista_de_arquivos.append(arquivo)
-        print (' '.join(lista_de_arquivos))
-        lista_de_arquivos=[]
+        return (' '.join(lista_de_arquivos))
         
     #Diretorio antigo é o diretorio atual -> diretorio atual vira diretorio antigo + diretorio novo.
     #'cd ' é removido antes de fazer operações com conteudo.
@@ -27,7 +26,7 @@ class Logica_de_arquivos():
 
         if diretorio_novo == '..':
             if not self.caminho_atual:
-                print ('erro')
+                return ('erro')
             else:
                 self.caminho_atual.pop()
                 self.diretorio_atual=self.filesystem['/']
@@ -40,14 +39,33 @@ class Logica_de_arquivos():
                 self.diretorio_atual=conteudo
                 self.caminho_atual.append(diretorio_novo)
             else:
-                print('erro: é arquivo')
+                return ('erro: é arquivo')
         else:
-            print('erro: não existe')
+            return ('erro: não existe')
 
     #Lista caminho atual
     def comando_pwd(self):
-        print ('/' + '/'.join(self.caminho_atual))
+        return ('/' + '/'.join(self.caminho_atual))
 
+    
+    #Envia arquivo ao cliente
+    def comando_RETR(self, arquivo_requisitado):
+        #retira o RETR do comando
+        comando_separado=arquivo_requisitado.split('',1)
+        if len(comando_separado) < 2:
+            return ('erro: falta nome do arquivo')
+        arquivo_do_comando=comando_separado[1:]
+        arquivo_requisitado=''.join(arquivo_do_comando)
+
+        #verifica se o arquivo está na pasta. Se estiver, envia o conteudo. Se não, da erro.
+        if arquivo_requisitado in self.diretorio_atual:
+            conteudo_do_arquivo=self.diretorio_atual[arquivo_requisitado]
+            if isinstance(conteudo_do_arquivo,dict):
+                return ('erro: Não é arquivo')
+            else:
+                return conteudo_do_arquivo
+        else:
+            return ('erro: arquivo não encontrado.')
 
 teste=Logica_de_arquivos()
 
