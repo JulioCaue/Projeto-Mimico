@@ -1,6 +1,7 @@
 #Pastas
 .venv/
 __pycache__
+quarentena/
 
 #Arquivos Importantes
 Honeypot.log
@@ -8,3 +9,6 @@ Honeypot.log
 #Arquivos misc
 nomes_de_conta_servidor.txt
 senhas_fracas_servidor.txt
+teste.mp3
+teste_enviar.py
+teste_receber.py

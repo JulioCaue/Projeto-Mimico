@@ -70,12 +70,9 @@ class Logica_de_arquivos():
         else:
             return ('erro: arquivo não encontrado.')
     
-
+    #grava arquivo no dicionario como nomes.
     def logica_comando_STOR(self,nome_virus_recebido,bytes_virus_recebido):
         self.diretorio_atual[nome_virus_recebido]=bytes_virus_recebido
-        pass
-
-
 
 
     #cria um diretorio novo
