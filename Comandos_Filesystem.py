@@ -22,7 +22,7 @@ class Logica_de_arquivos():
             return
 
         diretorio_do_comando=comando_separado[1:]
-        diretorio_novo=''.join(diretorio_do_comando)
+        diretorio_novo=' '.join(diretorio_do_comando)
 
         if diretorio_novo == '..':
             if not self.caminho_atual:
@@ -39,7 +39,7 @@ class Logica_de_arquivos():
                 self.diretorio_atual=conteudo
                 self.caminho_atual.append(diretorio_novo)
             else:
-                return ('erro: é arquivo')
+                print ('erro: é arquivo')
         else:
             return ('erro: não existe')
 
@@ -66,8 +66,22 @@ class Logica_de_arquivos():
                 return conteudo_do_arquivo
         else:
             return ('erro: arquivo não encontrado.')
+    
 
-teste=Logica_de_arquivos()
+    def logica_comando_STOR(self,nome_virus_recebido,bytes_virus_recebido):
+        self.diretorio_atual[nome_virus_recebido]=bytes_virus_recebido
+        pass
+
+
+
+
+    #cria um diretorio novo (vazio)
+    def comando_mkdir(self,nome_pasta_nova):
+        comando_separado=nome_pasta_nova.split()
+
+        nome_pasta_nova=comando_separado[1:]
+        nova_pasta=' '.join(nome_pasta_nova)
+        self.diretorio_atual[nova_pasta]={}
 
 
 
@@ -82,10 +96,17 @@ teste=Logica_de_arquivos()
 '''diretorio_novo='etc'
 diretorio2='shadow'''
 
+teste=Logica_de_arquivos()
+
 while True:
-    diretorio_novo=input('comando aqui: ')
-    teste.comando_cd(diretorio_novo)
     teste.comando_list()
+    diretorio_novo=input('comando aqui: ')
+    if diretorio_novo.startswith('mkdir'):
+        nome_pasta_nova=diretorio_novo
+        teste.comando_mkdir(nome_pasta_nova)
+    else:
+        teste.comando_cd(diretorio_novo)
+    print (teste.comando_list())
 
 
 #diretorio3='shadow'
@@ -98,14 +119,11 @@ teste.comando_pwd()
         #To do:
             #criar uma forma de salvar estado do filesystem(???) em multiplas instancias simultaneas.
                 #talvez irrelevante nesse arquivo. Deixar aqui por enquanto para se lembrar
+                #parece que não vai ser um problema, e isso já funciona. Terei que ver no teste real.
             
-            #fazer o mkdir (make directory) (cria pasta)
-            
-            #alguma forma de adicionar cd .. ao comando cd
-                #Talvez criar uma nova função para esse comando seja melhor?
-            
-            #adicionar o retr (retrieve) (envia conteudo ao hacker)
-            #adicionar o stor (store) (recebe conteudo do hacker)
+            #adicionar o stor (store) 
+                # (recebe conteudo do hacker [trabalho do arquivo principal],
+                # grava nome e bytes em uma chave no dicionario)
 
             
         #Notas:
