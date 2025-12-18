@@ -17,14 +17,16 @@ class Logica_de_arquivos():
     #Diretorio antigo é o diretorio atual -> diretorio atual vira diretorio antigo + diretorio novo.
     #'cd ' é removido antes de fazer operações com conteudo.
     def comando_cd(self,diretorio_novo):
+        #retira cd do input recebido
         comando_separado=diretorio_novo.split()
         if len(comando_separado) < 2:
             return
-
         diretorio_do_comando=comando_separado[1:]
         diretorio_novo=' '.join(diretorio_do_comando)
 
+        #verifica se está voltando ou avançando.
         if diretorio_novo == '..':
+            #volta para pasta anterior
             if not self.caminho_atual:
                 return ('erro')
             else:
@@ -33,6 +35,7 @@ class Logica_de_arquivos():
                 for pasta in self.caminho_atual:
                     self.diretorio_atual=self.diretorio_atual[pasta]
 
+        #avança para a proxima pasta se for uma pasta e não arquivo
         elif diretorio_novo in self.diretorio_atual:
             conteudo = self.diretorio_atual[diretorio_novo]
             if isinstance(conteudo, dict):
@@ -75,12 +78,14 @@ class Logica_de_arquivos():
 
 
 
-    #cria um diretorio novo (vazio)
+    #cria um diretorio novo
     def comando_mkdir(self,nome_pasta_nova):
+        #Retira "mkdir" do input recebido
         comando_separado=nome_pasta_nova.split()
-
         nome_pasta_nova=comando_separado[1:]
         nova_pasta=' '.join(nome_pasta_nova)
+
+        #adiciona nova key (vazia) ao filesystem (AKA nova pasta).
         self.diretorio_atual[nova_pasta]={}
 
 
