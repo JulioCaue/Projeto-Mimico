@@ -6,6 +6,7 @@ class Logica_de_arquivos():
         self.diretorio_atual=self.filesystem['/']
         self.caminho_atual=[]
         self.retirar_comando=('')
+        self.caracteres_proibidos = "'\"><,:?*/|\\"
 
     #Lista arquivos no diretorio atual. Simples
     def comando_list(self):
@@ -54,7 +55,7 @@ class Logica_de_arquivos():
     #Envia arquivo ao cliente
     def comando_RETR(self, arquivo_requisitado):
         #retira o RETR do comando
-        comando_separado=arquivo_requisitado.split('',1)
+        comando_separado=arquivo_requisitado.split(' ',1)
         if len(comando_separado) < 2:
             return ('erro: falta nome do arquivo')
         arquivo_do_comando=comando_separado[1:]
@@ -72,6 +73,8 @@ class Logica_de_arquivos():
     
     #grava arquivo no dicionario como nomes.
     def logica_comando_STOR(self,nome_virus_recebido,bytes_virus_recebido):
+        if nome_virus_recebido in self.diretorio_atual:
+            return ('já existe')
         self.diretorio_atual[nome_virus_recebido]=bytes_virus_recebido
 
 
@@ -82,10 +85,14 @@ class Logica_de_arquivos():
         nome_pasta_nova=comando_separado[1:]
         nova_pasta=' '.join(nome_pasta_nova)
 
-        #adiciona nova key (vazia) ao filesystem (AKA nova pasta).
-        self.diretorio_atual[nova_pasta]={}
-
-
+        for caractere in nova_pasta:
+            if caractere in self.caracteres_proibidos or caractere == (' ',''):
+                return ('contem caracteres proibidos.')
+        if nova_pasta in self.diretorio_atual:
+            return ('pasta já existe')
+        elif not nova_pasta:
+            #adiciona nova key (vazia) ao filesystem (AKA nova pasta).
+            self.diretorio_atual[nova_pasta]={}
 
 
 
@@ -122,11 +129,6 @@ teste.comando_pwd()
             #criar uma forma de salvar estado do filesystem(???) em multiplas instancias simultaneas.
                 #talvez irrelevante nesse arquivo. Deixar aqui por enquanto para se lembrar
                 #parece que não vai ser um problema, e isso já funciona. Terei que ver no teste real.
-            
-            #adicionar o stor (store) 
-                # (recebe conteudo do hacker [trabalho do arquivo principal],
-                # grava nome e bytes em uma chave no dicionario)
-
             
         #Notas:
             #Cat provavelmente não é uma boa.
