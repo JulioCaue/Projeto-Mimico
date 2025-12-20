@@ -1,4 +1,5 @@
 import socket
+import os # Necessário para verificar pastas
 
 class Logica_de_arquivos():
     def __init__(self):
@@ -21,7 +22,7 @@ class Logica_de_arquivos():
         
     #Diretorio antigo é o diretorio atual -> diretorio atual vira diretorio antigo + diretorio novo.
     #'cd ' é removido antes de fazer operações com conteudo.
-    def cd(self,diretorio_novo,socket_comunicação):
+    def cd(self,diretorio_novo):
         #verifica se está voltando ou avançando.
         if diretorio_novo == '..':
             #volta para pasta anterior
@@ -32,15 +33,15 @@ class Logica_de_arquivos():
                 self.diretorio_atual=self.filesystem['/']
                 for pasta in self.caminho_atual:
                     self.diretorio_atual=self.diretorio_atual[pasta]
-                socket_comunicação.send(b"250 Directory successfully changed.\r\n")
+                return (b"250 Directory successfully changed.\r\n")
 
         #avança para a proxima pasta se for uma pasta e não arquivo
         elif diretorio_novo in self.diretorio_atual:
             conteudo = self.diretorio_atual[diretorio_novo]
-            socket_comunicação.send(b"250 Directory successfully changed.\r\n")
             if isinstance(conteudo, dict):
                 self.diretorio_atual=conteudo
                 self.caminho_atual.append(diretorio_novo)
+                return (b"250 Directory successfully changed.\r\n")
             else:
                 return (b'550 Not a directory.\r\n')
         else:
@@ -65,37 +66,41 @@ class Logica_de_arquivos():
     
     #grava arquivo no dicionario como nomes.
     def stor(self,socket_comunicação,comando_recebido):
-        #envia sinal de confimação
-        socket_comunicação.send(b'150 Opening data connection.')
-        #pega nome do virus"
-        comando_recebido.split()
-        comando_separado=comando_recebido[1:]
-        comando_separado=comando_separado[1]
-        comando_recebido=' '.join(comando_separado)
+        #pega nome do virus
         nome_virus_recebido=comando_recebido
 
         if nome_virus_recebido in self.diretorio_atual:
             return (b'550 Requested action not taken')
-
-        if not nome_virus_recebido:
-            socket_comunicação.send(b'')
+        
         bytes_virus_recebido=bytearray()
-
         terminado=False
-        while terminado==False:
-            data=socket_comunicação.recv(1024)
-            if not data:
-                terminado=True
-            else:
-                bytes_virus_recebido+=data
+        
+        # Cria a pasta quarentena se não existir (evita erro de FileNotFoundError)
+        if not os.path.exists('quarentena'):
+            os.makedirs('quarentena')
+
+        # CORREÇÃO CRÍTICA: Timeout para evitar loop infinito
+        socket_comunicação.settimeout(1.0) 
+        
+        try:
+            while terminado==False:
+                try:
+                    data=socket_comunicação.recv(1024)
+                    if not data:
+                        terminado=True
+                    else:
+                        bytes_virus_recebido+=data
+                except socket.timeout:
+                    terminado=True # Sai do loop se não vier mais nada
+        finally:
+            socket_comunicação.settimeout(None) # Remove timeout para o loop principal voltar ao normal
 
         with open(f'quarentena/{nome_virus_recebido}.quarentena','wb') as arquivo:
             arquivo.write(bytes_virus_recebido)
             arquivo.close()
 
-        socket_comunicação.send(b'226 Closing data connection')
-
         self.diretorio_atual[nome_virus_recebido]=bytes_virus_recebido
+        return (b'226 Closing data connection. Requested file action successful.\r\n')
 
 
     #cria um diretorio novo
