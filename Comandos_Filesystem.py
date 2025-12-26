@@ -1,5 +1,6 @@
 import socket
 import os # Necessário para verificar pastas
+import random
 
 class Logica_de_arquivos():
     def __init__(self):
@@ -10,42 +11,94 @@ class Logica_de_arquivos():
         self.caminho_atual=[]
         self.retirar_comando=('')
         self.caracteres_proibidos = "'\"><,:?*/|\\"
+        self.diretorio_anterior=self.filesystem['/']
+        #verifica se o usuario está na pasta raiz atualmente. False se saiu de lá.
 
     #Lista arquivos no diretorio atual. Simples
     def list(self):
         lista_de_arquivos=[]
-        for arquivo in self.diretorio_atual:
-            lista_de_arquivos.append(arquivo)
+        for arquivo,conteudo in self.diretorio_atual.items():
+            random.seed(arquivo)
+            lista_de_meses=['Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            mes_aleatorio=random.choice(lista_de_meses)
+
+            dia_aleatorio=random.randint(1, 28)
+            if dia_aleatorio<10:
+                dia_aleatorio=str(f'0{dia_aleatorio}')
+
+            hora_aleatoria=(random.randint(0, 23))
+            if hora_aleatoria<10:
+                hora_aleatoria=str(f'0{hora_aleatoria}')
+            minuto_aleatorio=random.randint(1, 59)
+            if minuto_aleatorio<10:
+                minuto_aleatorio=str(f'0{minuto_aleatorio}')
+            hora_fake=(f'{hora_aleatoria}:{minuto_aleatorio}')
+
+            data=(f'{mes_aleatorio} {dia_aleatorio} {hora_fake}')
+
+            if isinstance(conteudo,dict):
+                linha_formatada = f"drwxr-xr-x 1 root root 4096 {data} {arquivo}"
+            else:
+                tamanho=len(conteudo)
+                linha_formatada = f"-rw-r--r-- 1 root root {tamanho} {data} {arquivo}"
+            
+            
+            lista_de_arquivos.append(linha_formatada)
+
         if not lista_de_arquivos:
             return None
-        else: return (' '.join(lista_de_arquivos))
+        else: return ('\r\n'.join(lista_de_arquivos))
         
     #Diretorio antigo é o diretorio atual -> diretorio atual vira diretorio antigo + diretorio novo.
     #'cd ' é removido antes de fazer operações com conteudo.
     def cd(self,diretorio_novo):
         #verifica se está voltando ou avançando.
-        if diretorio_novo == '..':
-            #volta para pasta anterior
-            if not self.caminho_atual:
-                return (b'erro')
+        if diretorio_novo=='..':
+            if self.diretorio_atual==['/']:
+                return (b'550 Directory not found.\r\n')
             else:
-                self.caminho_atual.pop()
                 self.diretorio_atual=self.filesystem['/']
+                try:
+                    self.caminho_atual.pop(-1)
+                except:
+                    return (b'550 Directory not found.\r\n')
                 for pasta in self.caminho_atual:
                     self.diretorio_atual=self.diretorio_atual[pasta]
                 return (b"250 Directory successfully changed.\r\n")
+        
+        elif diretorio_novo=='/':
+            self.caminho_atual=[]
+            self.diretorio_atual=self.filesystem['/']
+            return (b"250 Directory successfully changed.\r\n")
+            
+        caminho_temp=diretorio_novo.strip('/')
+        partes=caminho_temp.split('/')
+        navegação_temp=self.diretorio_atual
 
-        #avança para a proxima pasta se for uma pasta e não arquivo
-        elif diretorio_novo in self.diretorio_atual:
-            conteudo = self.diretorio_atual[diretorio_novo]
-            if isinstance(conteudo, dict):
-                self.diretorio_atual=conteudo
-                self.caminho_atual.append(diretorio_novo)
-                return (b"250 Directory successfully changed.\r\n")
+        caminho_absoluto=diretorio_novo.startswith('/')
+
+        if caminho_absoluto:
+            navegação_temp=self.filesystem['/']
+
+        for parte in partes:
+            if parte in navegação_temp:
+                conteudo=navegação_temp[parte]
+                if isinstance(conteudo,dict):
+                    navegação_temp=conteudo
+                else:
+                    return (b'550 Not a directory.\r\n')
             else:
-                return (b'550 Not a directory.\r\n')
+                return (b'550 File or directory not found.\r\n')
+            
+        if caminho_absoluto:
+            self.caminho_atual=partes
+            self.diretorio_atual=navegação_temp
+        
         else:
-            return (b'550 File or directory not found.\r\n')
+            for parte in partes:
+                self.caminho_atual.append(parte)
+            self.diretorio_atual=navegação_temp
+        return (b"250 Directory successfully changed.\r\n")
 
     #Lista caminho atual
     def pwd(self):
@@ -57,20 +110,20 @@ class Logica_de_arquivos():
         #verifica se o arquivo está na pasta. Se estiver, envia o conteudo. Se não, da erro.
         if arquivo_requisitado in self.diretorio_atual:
             conteudo_do_arquivo=self.diretorio_atual[arquivo_requisitado]
-            if isinstance(conteudo_do_arquivo,dict):
-                return (b'550 File or directory not found.\r\n')
-            else:
-                return conteudo_do_arquivo
+            estado_do_arquivo=True
+            return conteudo_do_arquivo,estado_do_arquivo
         else:
-            return (b'550 File or directory not found.\r\n')
+            conteudo_do_arquivo=None
+            estado_do_arquivo=False
+            return conteudo_do_arquivo,estado_do_arquivo
     
     #grava arquivo no dicionario como nomes.
-    def stor(self,socket_comunicação,comando_recebido):
+    def stor(self,conexao_dados,comando_recebido):
         #pega nome do virus
         nome_virus_recebido=comando_recebido
 
         if nome_virus_recebido in self.diretorio_atual:
-            return (b'550 Requested action not taken')
+            return (b'550 Requested action not taken\r\n')
         
         bytes_virus_recebido=bytearray()
         terminado=False
@@ -80,12 +133,12 @@ class Logica_de_arquivos():
             os.makedirs('quarentena')
 
         # CORREÇÃO CRÍTICA: Timeout para evitar loop infinito
-        socket_comunicação.settimeout(1.0) 
+        conexao_dados.settimeout(1.0) 
         
         try:
             while terminado==False:
                 try:
-                    data=socket_comunicação.recv(1024)
+                    data=conexao_dados.recv(1024)
                     if not data:
                         terminado=True
                     else:
@@ -93,7 +146,7 @@ class Logica_de_arquivos():
                 except socket.timeout:
                     terminado=True # Sai do loop se não vier mais nada
         finally:
-            socket_comunicação.settimeout(None) # Remove timeout para o loop principal voltar ao normal
+            conexao_dados.settimeout(None) # Remove timeout para o loop principal voltar ao normal
 
         with open(f'quarentena/{nome_virus_recebido}.quarentena','wb') as arquivo:
             arquivo.write(bytes_virus_recebido)
@@ -114,7 +167,27 @@ class Logica_de_arquivos():
                 return (b'553 File name not allowed.\r\n')
         if nova_pasta in self.diretorio_atual:
             return (b'550 Directory already exists.\r\n')
-        elif not nova_pasta:
+        elif nova_pasta in self.diretorio_atual:
+            return (b'550 Directory already exists.\r\n')
+        else:
             #adiciona nova key (vazia) ao filesystem (AKA nova pasta).
             self.diretorio_atual[nova_pasta]={}
             return (b'257 Directory created.\r\n')
+
+
+    #Envia os comandos disponiveis atualmente
+    def help(self):
+        return (b'''214 The following commands are recognized <* =>'s unimplemented>:
+CWD      XCWD*   CDUP*   XCUP*   SMNT*   QUIT    PORT*   PASV*
+EPRT*    EPSV*   ALLO*   RNFR*   RNTO*   DELE*   MDTM*   RMD*
+XRMD*    MKD     XMKD*   PWD     XPWD*   SIZE*   SYST    HELP
+NOOP*    FEAT*   OPTS*   AUTH*   CCC*    CONF*   ENC*    MIC*
+APPE*    REST*   ABOR*   STRU*   MODE*   RETR    STOR    STOU*
+LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
+    
+
+    def syst(self):
+        return (b'215 UNKNOWN Type: L8\r\n')
+    
+    def type(self,comando_recebido):
+        return (f'200 Type set to {comando_recebido}\r\n')
