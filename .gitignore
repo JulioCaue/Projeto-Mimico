@@ -2,7 +2,6 @@
 .venv/
 __pycache__
 quarentena/
-logs_de_erro/
 
 #Arquivos Importantes
 Honeypot.log
@@ -10,4 +9,3 @@ Honeypot.log
 #Arquivos Misc
 
 #Arquivos de Teste
-teste.mp3
