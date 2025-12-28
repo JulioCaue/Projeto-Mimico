@@ -2,7 +2,12 @@ import socket
 import datetime 
 import threading
 import Comandos_Filesystem as fs
+import criar_banco_de_dados
+import gerenciar_banco_de_dados
 import random
+
+criar_banco=criar_banco_de_dados
+criar_banco.criar_banco()
 
 class Honeypot:
     def __init__(self):
