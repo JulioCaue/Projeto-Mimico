@@ -1,6 +1,7 @@
 import socket
 import os # Necessário para verificar pastas
 import random
+import hashlib
 
 class Logica_de_arquivos():
     def __init__(self):
@@ -191,3 +192,19 @@ LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
     
     def type(self,comando_recebido):
         return (f'200 Type set to {comando_recebido}\r\n')
+    
+    def pegar_data_arquivo(self,nome_virus_recebido):
+        tamanho_do_virus=os.path.getsize(f'quarentena/{nome_virus_recebido}')
+        tamanho_do_virus=(tamanho_do_virus/1048576)
+        tamanho_do_virus=f'{tamanho_do_virus:.2f}'
+        return tamanho_do_virus
+
+    def pegar_hash_virus(self,nome_virus_recebido,algorithm="sha256"):
+        try:
+            with open(f'quarentena/{nome_virus_recebido}.quarentena', "rb") as f:
+                digest = hashlib.file_digest(f, algorithm)
+            return digest.hexdigest()
+        except FileNotFoundError:
+            return "Error: File not found"
+        except ValueError as e:
+            return (f"Error: {e}")
