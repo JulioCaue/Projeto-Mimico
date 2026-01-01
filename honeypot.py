@@ -6,13 +6,17 @@ import criar_banco_de_dados
 import gerenciar_banco_de_dados
 import random
 
+
+#cria o banco de dados caso não exista
 criar_banco=criar_banco_de_dados
 criar_banco.criar_banco()
 gerenciador=gerenciar_banco_de_dados.gerenciador_de_banco()
 
+
+#Cria a classe honeypot
 class Honeypot:
     def __init__(self):
-        self.__host='127.0.0.1'
+        self.__host='localhost'
         self.__porta=21
         self.conexões_ativas=0
         self.servidor=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -23,72 +27,90 @@ class Honeypot:
         socket_secundario=None
         self.lock=threading.Lock()
 
+    #Separa o comando e retorna oque restar no index 1 
+    #Caso de fato existam mais de duas palavras presentes.
     def separar_comando(self,comando_recebido,socket_comunicação):
         comando_separado=comando_recebido.split(' ',1)
         if len(comando_separado)>1:
             comando_recebido=comando_separado[1]
-            comando_recebido=comando_recebido.strip()
             return comando_recebido
         else:
             socket_comunicação.send(b'501 Syntax error in parameters or arguments.\r\n')
             return ''
         
+    #Retorna o index 0 e 1 como verbo e argumento, em ordem. Sempre usar antes de separar comando.
     def pegar_comando_separado(self,comando_recebido):
-        comando_separado=comando_recebido.split(' ',1)
-        comando_recebido=comando_recebido.strip()
-        verbo=comando_separado[0]
-        argumento=comando_separado[1:]
-        verbo.join()
-        argumento.join()
+        comando_recebido=comando_recebido.split(' ',1)
+        verbo=comando_recebido[0]
+        try:
+            argumento=comando_recebido[1]
+        except:
+            argumento='sem_argumento'
         return verbo,argumento
 
+    
+    #Função que interage com cliente.
     def interagir_com_cliente(self,socket_comunicação,ID_de_usuario):
         try:
-            #Cria variavel comando para usar comandos e envia mensagem inivial ao invasor.
             comando=fs.Logica_de_arquivos()
-            socket_comunicação.send(b'220 welcome\r\n')
-            # Adicionado tamanho do buffer
-            comando_recebido=socket_comunicação.recv(1024).decode()
-            user=False
+            sem_tentativa_usuario=True
 
-            #sistema basico de login para enganar
-            while True:
-                if comando_recebido.startswith ('USER') and user!=True:
-                    socket_comunicação.send(b'331 Please specify the password.\r\n')
-                    user=True
-                else: socket_comunicação.send(b'530 Not logged in.\r\n')
-                # Adicionado tamanho do buffer
-                comando_recebido=socket_comunicação.recv(1024).decode()
-                if comando_recebido.startswith ('PASS') and user==True:
-                    socket_comunicação.send(b'230 Login successful.\r\n')
-                    break
-                else: 
+
+            #Sistema false de "login". Simples de proposito, mas deve ter alguma maneira de melhorar.
+
+            #Envia saudação inicial
+            socket_comunicação.send(b'220 welcome.\r\n')
+            comando_recebido=socket_comunicação.recv(1024).decode().strip()
+
+            #Faz login do usuario enviado (não é salvo no banco de dados)
+            while comando_recebido.lower().startswith('user')==False:
+                if sem_tentativa_usuario==True:
                     socket_comunicação.send(b'530 Not logged in.\r\n')
-                    user=False
-                horario_do_comando=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
-                verbo, argumento=self.pegar_comando_separado(comando_recebido)
-                self.lock.acquire()
-                gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
-                self.lock.release()
-                
+                    comando_recebido=socket_comunicação.recv(1024).decode().strip()
+                    sem_tentativa_usuario=False
+                else:
+                    socket_comunicação.send(b'530 Not logged in.\r\n')
+                    comando_recebido=socket_comunicação.recv(1024).decode().strip()
+
+            #Pega a senha recebida e coloca no banco de dados.
+            socket_comunicação.send(b'331 Please specify the password.\r\n')
+            comando_recebido=socket_comunicação.recv(1024).decode().strip()
+            while comando_recebido.lower().startswith('pass')==False:
+                socket_comunicação.send(b'530 Not logged in.\r\n')
+            socket_comunicação.send(b'230 Login successful.\r\n')
+            horario_do_comando=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
+            verbo='senha'
+            if len(comando_recebido.split(' ',1))>1:
+                argumento=str(comando_recebido.split(' ')[1])
+            else:
+                argumento=str(comando_recebido)
+            self.lock.acquire()
+            gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+            self.lock.release()
 
 
+            #inicio do loop principal de interação
             while True:
+                #Quebra a conexão caso os dados venham vazios. Também informa erros caso haja algum.
                 try:
                     dados_raw = socket_comunicação.recv(1024)
-                    if not dados_raw: break # Se cliente desconectar, encerra loop
+                    if not dados_raw:
+                        timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
+                        socket_comunicação.close()
+                        self.lock.acquire()
+                        gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
+                        self.lock.release() 
+                        break
                     comando_recebido = dados_raw.decode('utf-8',errors='ignore').strip()
                 except Exception as e:
                     print (f'Erro na conexão: {e}')
                     break
 
-                verbo, argumento=self.pegar_comando_separado(comando_recebido)
+                #Salva horario que o comando foi enviado
                 horario_do_comando=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
-                self.lock.acquire()
-                gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
-                self.lock.release()
 
-                if comando_recebido.startswith('LIST'):
+                #Logica de listagem das pastas falsas. Requer pasv primeiro.
+                if comando_recebido.lower().startswith('list'):
                     resp = comando.list()
                     if self.pasv_aconteceu:
                         if resp:
@@ -102,25 +124,42 @@ class Honeypot:
                         conn_dados.close()
                         socket_secundario.close()
                         self.pasv_aconteceu=False
+                        verbo='list'
+                        argumento='sem_argumento'
+                        self.lock.acquire()
+                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                        self.lock.release()
 
 
                     else:
                         socket_comunicação.send(b'425 Use PASV first.\r\n')
 
+                #Muda o diretorio no filesystem falso.
                 elif comando_recebido.lower().startswith('cwd'):
+                    verbo,argumento=self.pegar_comando_separado(comando_recebido)
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
                     diretorio_novo=self.separar_comando(comando_recebido,socket_comunicação)
                     socket_comunicação.send(comando.cd(diretorio_novo))
 
+                #Mostra diretorio atual no filesystem falso.
                 elif comando_recebido.lower().startswith('pwd'):
+                    verbo='pwd'
+                    argumento='sem_argumento'
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
                     socket_comunicação.send(f'257 "{comando.pwd()}" is current directory.\r\n'.encode())
 
+                #Envia arquivo requisitado para o invasor
                 elif comando_recebido.lower().startswith('retr'):
+                    verbo,argumento=self.pegar_comando_separado(comando_recebido)
                     arquivo_requisitado=self.separar_comando(comando_recebido,socket_comunicação)
                     conteudo_do_arquivo,estado_do_arquivo = comando.retr(arquivo_requisitado)
                     if estado_do_arquivo==True:
                         socket_comunicação.send(b'150 File status okay\r\n')
                         conn_dados, addr = socket_secundario.accept()
-                        #todo: encode ou não dependendo se for strings.
                         if isinstance(conteudo_do_arquivo,str):
                             conn_dados.sendall(conteudo_do_arquivo.encode())
                         elif isinstance(conteudo_do_arquivo,bytes):
@@ -131,17 +170,31 @@ class Honeypot:
                         self.pasv_aconteceu=False
                     else:
                         socket_comunicação.send(b'550 File not found.\r\n')
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
                     
 
-                
+                #cria pasta nova no filesystem
                 elif comando_recebido.lower().startswith('mkd'):
+                    verbo,argumento=self.pegar_comando_separado(comando_recebido)
                     nova_pasta=self.separar_comando(comando_recebido,socket_comunicação)
-                    socket_comunicação.send(comando.mkdir(nova_pasta)) # Adicionado send que faltava
+                    socket_comunicação.send(comando.mkdir(nova_pasta))
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
                 
+
+                #Baixa arquivo do invasor para o filesystem (precisa implementar interação com banco!!)
                 elif comando_recebido.lower().startswith('stor'):
                     if self.pasv_aconteceu:
                         socket_comunicação.send(b'150 Opening data connection\r\n')
                         conn_dados, endereco_cliente=socket_secundario.accept()
+                    verbo='stor'
+                    if len(comando_recebido.split(' ',1))>1:
+                        argumento=comando_recebido.split(' ',1)[1]
+                    else:argumento='sem_argumento'
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
                     comando_recebido=self.separar_comando(comando_recebido,socket_comunicação)
                     nome_virus_recebido=comando_recebido
                     socket_comunicação.send(comando.stor(conn_dados,comando_recebido))
@@ -154,7 +207,8 @@ class Honeypot:
                     gerenciador.adicionar_data_arquivo(ID_de_usuario,nome_virus_recebido,tamanho_do_virus,hash_do_virus)
                     self.lock.release()
 
-                elif comando_recebido.lower()=='quit':
+                #Finaliza conexão formalmente, e loga data de finalização.
+                elif comando_recebido.lower().startswith('quit'):
                     timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
                     try:
                         socket_comunicação.send(b'221 Goodbye\r\n')
@@ -162,23 +216,44 @@ class Honeypot:
                         print ('conexão cortada pelo cliente.')
                         socket_comunicação.close()
                     
+                    timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
                     self.lock.acquire()
                     gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
                     self.lock.release()
                     break # Sai do loop
 
-
-                elif comando_recebido.lower()=='help':
-                    socket_comunicação.send(comando.help())
+                #logica do comando help
+                elif comando_recebido.lower().startswith('help'):
+                    if len(comando_recebido.split())>=2:
+                        socket_comunicação.send(b'504 Command not implemented for that parameter.')
+                    else:
+                        socket_comunicação.send(comando.help())
+                        verbo=comando_recebido
+                        argumento='sem_argumento'
+                        self.lock.acquire()
+                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                        self.lock.release()
                 
-
-                elif comando_recebido.lower()=='syst':
+                
+                #Logica do comando syst
+                elif comando_recebido.lower().startswith('syst'):
                     socket_comunicação.send(comando.syst())
+                    verbo=comando_recebido
+                    argumento='sem_argumento'
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
 
+                #Logica do comando type
                 elif comando_recebido.lower().startswith('type'):
+                    verbo,argumento=self.pegar_comando_separado(comando_recebido)
                     comando_recebido=self.separar_comando(comando_recebido,socket_comunicação)
                     socket_comunicação.send(comando.type(comando_recebido).encode())
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
 
+                #Logica do comando pasv
                 elif comando_recebido.lower()==('pasv'):
                     porta_secundaria=random.randint(49152,65535)
                     P1=porta_secundaria//256
@@ -190,13 +265,32 @@ class Honeypot:
                     socket_secundario.listen()
                     socket_comunicação.send(f'227 Entering Passive Mode (127,0,0,1,{P1},{P2})\r\n'.encode())
                     self.pasv_aconteceu=True
+                    verbo='pasv'
+                    argumento='sem_argumento'
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
 
+
+                #Logica para qualquer outro comando não implementado
                 else:
                     socket_comunicação.send(b'502 Command not implemented.\r\n')
+                    if len(comando_recebido.split(' ',1))<2>=3:
+                        if len(comando_recebido.split(' ',1))<2:
+                            verbo=comando_recebido
+                            argumento="sem_argumento"
+                        else:
+                            verbo=comando_recebido.split(' ',1)[0]
+                            argumento=comando_recebido.split(' ',1)[1]
+                    else:
+                        verbo,argumento=self.pegar_comando_separado(comando_recebido)
+                    self.lock.acquire()
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    self.lock.release()
 
                 
                 
-                
+        #Gerencia problema de conexão       
         except ConnectionError:
             timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
             socket_comunicação.close()
@@ -204,23 +298,19 @@ class Honeypot:
             gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
             self.lock.release()
 
-    def gerenciar_conexões(self):
+    #Aceita as conexões de acordo com numero de threads
+    def ligar_servidor(self):
         print('Esperando Conexão...')
         while True:
             socket_comunicação,endereço=self.servidor.accept()
-
             IP_invasor,porta_invasor=endereço
             horario_da_conexão=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
             ID_de_usuario=gerenciador.adicionar_nova_conexão(IP_invasor,porta_invasor,horario_da_conexão)
+            #print aqui funciona!!!! ou pelo menos é pra funcionar.
+            t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,ID_de_usuario),daemon=True)
+            t.start()
 
-            self.conexões_ativas+=1
-            if self.conexões_ativas<=self.maximo_de_conexões:        
-                t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,ID_de_usuario),daemon=True)
-                t.start()
-            else:
-                socket_comunicação.send("421 Too many users, try again later\r\n".encode())
-                socket_comunicação.close()
-                print ('Maximo de conexões ativas foi atingido. Esperando liberação...')
 
+#Liga o servidor.
 servidor=Honeypot()
-servidor.gerenciar_conexões()
+servidor.ligar_servidor()
