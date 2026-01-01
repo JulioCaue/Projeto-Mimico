@@ -194,7 +194,7 @@ LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
         return (f'200 Type set to {comando_recebido}\r\n')
     
     def pegar_data_arquivo(self,nome_virus_recebido):
-        tamanho_do_virus=os.path.getsize(f'quarentena/{nome_virus_recebido}')
+        tamanho_do_virus=os.path.getsize(f'quarentena/{nome_virus_recebido}.quarentena')
         tamanho_do_virus=(tamanho_do_virus/1048576)
         tamanho_do_virus=f'{tamanho_do_virus:.2f}'
         return tamanho_do_virus
