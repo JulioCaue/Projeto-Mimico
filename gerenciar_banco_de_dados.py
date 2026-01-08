@@ -2,6 +2,8 @@ import sqlite3
 from contextlib import closing
 import time
 import requests
+from dotenv import load_dotenv
+import os
 
 class gerenciador_de_banco():
     def adicionar_nova_conexão(self,IP_invasor,porta_invasor,horario_da_conexão):
@@ -65,3 +67,39 @@ class gerenciador_de_banco():
                 longitude=dados_ip['lon']
                 self.colocar_localização(ID_de_usuario,IP_de_origem,latitude,longitude)
                 time.sleep(1.5)
+
+    def escanear_arquivo(self,hash_do_arquivo):
+        load_dotenv()
+        virus_total_header_api=os.getenv('virus_total')
+        analisador=f'https://www.virustotal.com/api/v3/files/{hash_do_arquivo}'
+        headers={
+            'accept':"application/json",
+            'x-apikey':f'{virus_total_header_api}'
+            }
+        dados_recebidos=requests.get(analisador, headers=headers)
+        data_analisada=dados_recebidos.json()
+
+        #pega numero de votos para malicioso.
+        votos_arquivo=data_analisada['data']['atributes']['last_analysis_stats']['malicious']
+        #pega tipo do arquivo (Exemplo: win32 EXE)
+        tipo_do_arquivo=data_analisada['data']['atributes']['type_description']
+        #tenta pegar categoria, mas se der erro, diz que é generico.
+        try:
+            categoria_arquivo = data_analisada['data']['threat_severity']['threat_severity_data']['popular_threat_category']
+        except (KeyError, TypeError):
+            categoria_arquivo = 'generico'
+
+        #nota - adicionar timeout para evitar ser banido!!!!
+
+        return votos_arquivo,tipo_do_arquivo,categoria_arquivo
+
+    #Atualisa banco de dados com informações sobre o arquivo. Talvez seria melhor 
+    #apenas se é inofensivo ou não ao invés de numero de votos?    
+    def atualisar_tabela_capturas_scan(self,votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario):
+        with closing(sqlite3.connect('coletor.db')) as conexão:
+            with conexão:
+                cursor=conexão.cursor()
+                cursor.execute('''
+                update capturas
+                set Numero_de_votos_malicioso=(?),tipo_de_arquivo=(?),categoria_arquivo=(?)
+                where ID_de_usuario=(?)''',(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario))
