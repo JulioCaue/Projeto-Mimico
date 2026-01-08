@@ -6,6 +6,5 @@ quarentena/
 #Arquivos Importantes
 coletor.db
 
-#Arquivos Misc
-
 #Arquivos de Teste
+dashboard_teste.py
