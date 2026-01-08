@@ -6,29 +6,37 @@ def criar_banco():
         with sqlite3.connect('coletor.db') as conexão:
             cursor=conexão.cursor()
             cursor.execute('''
-                create table sessões(
-                        ID_de_usuario integer primary key autoincrement,
-                        IP_de_origem text,
-                        Porta_de_origem integer,
-                        Data_de_inicio text,
-                        Data_de_finalização text)
+            create table geolocalização(
+            ID_Localização integer primary key autoincrement,
+            ID_de_usuario integer unique,
+            IP_de_origem text unique,
+            Latitude text,
+            longitude text,
+            Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
             ''')
             cursor.execute('''
-                create table comandos(
-                        ID_do_comando integer primary key autoincrement,
-                        ID_de_usuario integer,
-                        Comando text,
-                        Argumento text,
-                        Timestamp text,
-                        Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
+            create table capturas(
+            ID_da_captura integer primary key autoincrement,
+            ID_de_usuario integer,
+            Nome_do_arquivo text,
+            Tamanho_do_arquivo integer,
+            Hash_do_arquivo text,
+            Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
             ''')
             cursor.execute('''
-                create table capturas(
-                        ID_da_captura integer primary key autoincrement,
-                        ID_de_usuario integer,
-                        Nome_do_arquivo text,
-                        Tamanho_do_arquivo integer,
-                        Hash_do_arquivo text,
-                        Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
-        ''')
-        cursor.close()
+            create table comandos(
+            ID_do_comando integer primary key autoincrement,
+            ID_de_usuario integer,
+            Comando text,
+            Argumento text,
+            Timestamp text,
+            Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
+            ''')
+            cursor.execute('''
+            create table sessões(
+            ID_de_usuario integer primary key autoincrement,
+            IP_de_origem text,
+            Porta_de_origem integer,
+            Data_de_inicio text,
+            Data_de_finalização text)
+            ''')
