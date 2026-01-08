@@ -21,6 +21,9 @@ def criar_banco():
             Nome_do_arquivo text,
             Tamanho_do_arquivo integer,
             Hash_do_arquivo text,
+            Numero_de_votos_malicioso integer,
+            tipo_de_arquivo text,
+            categoria_arquivo text,
             Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
             ''')
             cursor.execute('''
