@@ -24,6 +24,7 @@ def criar_banco():
             Numero_de_votos_malicioso integer,
             tipo_de_arquivo text,
             categoria_arquivo text,
+            Status text default pendente,
             Foreign key (ID_de_usuario) REFERENCES sessões(ID_de_usuario))
             ''')
             cursor.execute('''
