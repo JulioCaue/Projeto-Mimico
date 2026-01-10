@@ -5,6 +5,7 @@ import Comandos_Filesystem as fs
 import criar_banco_de_dados
 import gerenciar_banco_de_dados
 import random
+import time
 
 
 #cria o banco de dados caso não exista
@@ -301,16 +302,37 @@ class Honeypot:
     #Aceita as conexões de acordo com numero de threads
     def ligar_servidor(self):
         print('Esperando Conexão...')
+        numero_de_conexões=0
+        maximo_de_conexões=10
         while True:
+            numero_de_conexões+=1
             socket_comunicação,endereço=self.servidor.accept()
-            IP_invasor,porta_invasor=endereço
-            horario_da_conexão=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
-            ID_de_usuario=gerenciador.adicionar_nova_conexão(IP_invasor,porta_invasor,horario_da_conexão)
-            #print aqui funciona!!!! ou pelo menos é pra funcionar.
-            t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,ID_de_usuario),daemon=True)
-            t.start()
+            if numero_de_conexões>maximo_de_conexões:
+                socket_comunicação.close()
+            else:
+                IP_invasor,porta_invasor=endereço
+                print (f'Conexão estabelecida com endereço {IP_invasor}')
+                horario_da_conexão=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
+                ID_de_usuario=gerenciador.adicionar_nova_conexão(IP_invasor,porta_invasor,horario_da_conexão)
+                #pega o ID e adiciona no banco de dados
+                #print aqui funciona!!!! ou pelo menos é pra funcionar.
+                t=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,ID_de_usuario),daemon=True)
+                t.start()
+                gerenciador.pesquisar_local_do_ip(ID_de_usuario)
 
 
 #Liga o servidor.
 servidor=Honeypot()
-servidor.ligar_servidor()
+servidor_desligado=True
+
+while True:
+    if servidor_desligado:
+        t=threading.Thread(target=servidor.ligar_servidor())
+        t.start()
+        servidor_desligado=False
+
+    resultado=gerenciador.pegar_hash_arquivo_pendente()
+    if resultado:
+        ID_de_usuario,hash_do_arquivo=resultado
+        gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario)
+    time.sleep(21)
