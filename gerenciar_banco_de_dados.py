@@ -44,21 +44,12 @@ class gerenciador_de_banco():
                                     set Data_de_finalização = (?)
                                     where ID_de_usuario = (?)''',(timestamp_final,ID_de_usuario))
 
-    def colocar_localização(self,ID_de_usuario,IP_de_origem,latitude,longitude):
-        with closing(sqlite3.connect('coletor.db')) as conexão:
-            with conexão:
-                cursor=conexão.cursor()
-                cursor.execute('''
-                            insert into geolocalização
-                            (ID_de_usuario,IP_de_origem,latitude,longitude)
-                            values(?,?,?,?)''',(ID_de_usuario,IP_de_origem,latitude,longitude))
-    
-    def pesquisar_local_de_ips(self,ID_de_usuario):
+    def pesquisar_local_do_ip(self,ID_de_usuario):
         with closing(sqlite3.connect('coletor.db')) as conexão:
             with conexão:
                 cursor=conexão.cursor()
                 cursor.execute('''select IP_de_origem from sessões where ID_de_usuario=(?)''',(ID_de_usuario,))
-                IP_de_origem=cursor.fetchone()[0]
+                IP_de_origem=cursor.fetchone()
 
                 localizador=f'http://ip-api.com/json/{IP_de_origem}?fields=lat,lon'
                 localizador_dados=requests.get(localizador)
@@ -67,8 +58,18 @@ class gerenciador_de_banco():
                 longitude=dados_ip['lon']
                 self.colocar_localização(ID_de_usuario,IP_de_origem,latitude,longitude)
                 time.sleep(1.5)
+        
 
-    def escanear_arquivo(self,hash_do_arquivo):
+    def colocar_localização(self,ID_de_usuario,IP_de_origem,latitude,longitude):
+        with closing(sqlite3.connect('coletor.db')) as conexão:
+            with conexão:
+                cursor=conexão.cursor()
+                cursor.execute('''
+                            insert or ignore into geolocalização
+                            (ID_de_usuario,IP_de_origem,latitude,longitude)
+                            values(?,?,?,?)''',(ID_de_usuario,IP_de_origem,latitude,longitude))
+
+    def escanear_arquivo(self,hash_do_arquivo,ID_de_usuario):
         load_dotenv()
         virus_total_header_api=os.getenv('virus_total')
         analisador=f'https://www.virustotal.com/api/v3/files/{hash_do_arquivo}'
@@ -89,17 +90,33 @@ class gerenciador_de_banco():
         except (KeyError, TypeError):
             categoria_arquivo = 'generico'
 
-        #nota - adicionar timeout para evitar ser banido!!!!
-
-        return votos_arquivo,tipo_do_arquivo,categoria_arquivo
+        self.atualisar_tabela_capturas_scan(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario)
 
     #Atualisa banco de dados com informações sobre o arquivo. Talvez seria melhor 
-    #apenas se é inofensivo ou não ao invés de numero de votos?    
+    #apenas se é inofensivo ou não ao invés de numero de votos?
+    # Novo dia: numero é melhor. Tudo aqui, por definição, é malicioso.    
     def atualisar_tabela_capturas_scan(self,votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario):
         with closing(sqlite3.connect('coletor.db')) as conexão:
             with conexão:
                 cursor=conexão.cursor()
                 cursor.execute('''
                 update capturas
-                set Numero_de_votos_malicioso=(?),tipo_de_arquivo=(?),categoria_arquivo=(?)
+                set Numero_de_votos_malicioso=(?),tipo_de_arquivo=(?),categoria_arquivo=(?),status='verificado'
                 where ID_de_usuario=(?)''',(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario))
+    
+    def pegar_hash_arquivo_pendente(self):
+        with closing(sqlite3.connect('coletor.db')) as conexão:
+            with conexão:
+                cursor=conexão.cursor()
+                cursor.execute('''
+            select 
+            ID_de_usuario,
+            Hash_do_arquivo 
+            from capturas where status='pendente'
+            ''')
+            resultado=cursor.fetchone()
+            if resultado:
+                ID_de_usuario,hash_do_arquivo=resultado
+                return ID_de_usuario,hash_do_arquivo
+            else:
+                return None
