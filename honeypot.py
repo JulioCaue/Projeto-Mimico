@@ -31,6 +31,8 @@ class Honeypot:
         self.thread_escaneadora.start()
         self.thread_servidor=threading.Thread(target=self.ligar_servidor)
         self.thread_servidor.start()
+        self.numero_de_conexões=0
+        self.maximo_de_conexões=10
 
     #Separa o comando e retorna oque restar no index 1 
     #Caso de fato existam mais de duas palavras presentes.
@@ -104,6 +106,7 @@ class Honeypot:
                         socket_comunicação.close()
                         with self.lock:
                             gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
+                            self.numero_de_conexões-=1
                         break
                     comando_recebido = dados_raw.decode('utf-8',errors='ignore').strip()
                 except Exception as e:
@@ -203,7 +206,7 @@ class Honeypot:
                     socket_secundario.close()
                     self.pasv_aconteceu=False
                     tamanho_do_virus=comando.pegar_data_arquivo()
-                    hash_do_arquivo=comando.pegar_hash_virus(nome_perigoso_virus_recebido)
+                    hash_do_arquivo=comando.pegar_hash_virus()
                     comando.trocar_nome_perigoso_para_hash(hash_do_arquivo)
                     with self.lock:
                         gerenciador.adicionar_data_arquivo(ID_de_usuario,nome_perigoso_virus_recebido,tamanho_do_virus,hash_do_arquivo)
@@ -220,6 +223,7 @@ class Honeypot:
                     timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
                     with self.lock:
                         gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
+                        self.numero_de_conexões-=1
                     break # Sai do loop
 
                 #logica do comando help
@@ -291,16 +295,15 @@ class Honeypot:
             socket_comunicação.close()
             with self.lock:
                 gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
+                self.numero_de_conexões-=1
 
     #Aceita as conexões de acordo com numero de threads
     def ligar_servidor(self):
-        numero_de_conexões=0
-        maximo_de_conexões=10
         while True:
-            print(f'Esperando Conexão... ({numero_de_conexões}/{maximo_de_conexões}conectados)')
-            numero_de_conexões+=1
+            print(f'Esperando Conexão... ({self.numero_de_conexões}/{self.maximo_de_conexões}conectados)')
+            self.numero_de_conexões+=1
             socket_comunicação,endereço=self.servidor.accept()
-            if numero_de_conexões>maximo_de_conexões:
+            if self.numero_de_conexões>self.maximo_de_conexões:
                 socket_comunicação.close()
             else:
                 IP_invasor,porta_invasor=endereço
@@ -311,10 +314,10 @@ class Honeypot:
                 #print aqui funciona!!!! ou pelo menos é pra funcionar.
                 thread_interagir_cliente=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,ID_de_usuario),daemon=True)
                 thread_interagir_cliente.start()
-                with self.lock:
-                    if ID_de_usuario:
-                        thread_localizadora=threading.Thread(target=gerenciador.pesquisar_local_do_ip,args=(str(ID_de_usuario)),daemon=True)
-                        thread_localizadora.start()
+                if ID_de_usuario:
+                    função_lock=self.lock
+                    thread_localizadora=threading.Thread(target=gerenciador.pesquisar_local_do_ip,args=(ID_de_usuario,função_lock),daemon=True)
+                    thread_localizadora.start()
 
     def escaneador_segundo_plano(self):
         while True:
@@ -323,8 +326,3 @@ class Honeypot:
                 ID_de_usuario,hash_do_arquivo=resultado
                 gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario)
             time.sleep(21)
-
-
-#Liga o servidor.
-servidor=Honeypot()
-servidor.ligar_servidor()

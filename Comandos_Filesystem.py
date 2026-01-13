@@ -205,4 +205,4 @@ LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
             return (f"Error: {e}")
         
     def trocar_nome_perigoso_para_hash(self,hash_do_arquivo):
-        os.rename(f'quarentena/{self.nome_temporario_arquivo}',f'quarentena/{hash_do_arquivo}')
+        os.rename(f'quarentena/{self.nome_temporario_arquivo}',f'quarentena/{hash_do_arquivo}.quarentena')

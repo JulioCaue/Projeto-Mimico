@@ -44,20 +44,21 @@ class gerenciador_de_banco():
                                     set Data_de_finalização = (?)
                                     where ID_de_usuario = (?)''',(timestamp_final,ID_de_usuario))
 
-    def pesquisar_local_do_ip(self,ID_de_usuario):
-        with closing(sqlite3.connect('coletor.db')) as conexão:
-            with conexão:
-                cursor=conexão.cursor()
-                cursor.execute('''select IP_de_origem from sessões where ID_de_usuario=(?)''',(ID_de_usuario,))
-                IP_de_origem=cursor.fetchone()
+    def pesquisar_local_do_ip(self,ID_de_usuario,função_lock):
+        with função_lock:
+            with closing(sqlite3.connect('coletor.db')) as conexão:
+                with conexão:
+                    cursor=conexão.cursor()
+                    cursor.execute('''select IP_de_origem from sessões where ID_de_usuario=(?)''',(ID_de_usuario,))
+                    IP_de_origem=cursor.fetchone()
 
-                localizador=f'http://ip-api.com/json/{IP_de_origem[0]}?fields=lat,lon'
-                localizador_dados=requests.get(localizador)
-                dados_ip=localizador_dados.json()
-                latitude=dados_ip['lat']
-                longitude=dados_ip['lon']
-                self.colocar_localização(ID_de_usuario,IP_de_origem,latitude,longitude)
-                time.sleep(1.5)
+                    localizador=f'http://ip-api.com/json/{IP_de_origem[0]}?fields=lat,lon'
+                    localizador_dados=requests.get(localizador)
+                    dados_ip=localizador_dados.json()
+                    latitude=dados_ip['lat']
+                    longitude=dados_ip['lon']
+                    self.colocar_localização(ID_de_usuario,IP_de_origem,latitude,longitude)
+                    time.sleep(1.5)
         
 
     def colocar_localização(self,ID_de_usuario,IP_de_origem,latitude,longitude):
