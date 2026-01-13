@@ -58,6 +58,7 @@ class Honeypot:
     
     #Função que interage com cliente.
     def interagir_com_cliente(self,socket_comunicação,ID_de_usuario):
+        função_lock=self.lock
         try:
             comando=fs.Logica_de_arquivos()
             sem_tentativa_usuario=True
@@ -91,8 +92,7 @@ class Honeypot:
                 argumento=str(comando_recebido.split(' ')[1])
             else:
                 argumento=str(comando_recebido)
-            with self.lock:
-                gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+            gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
             
 
 
@@ -104,9 +104,8 @@ class Honeypot:
                     if not dados_raw:
                         timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
                         socket_comunicação.close()
-                        with self.lock:
-                            gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
-                            self.numero_de_conexões-=1
+                        gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario,função_lock)
+                        self.numero_de_conexões-=1
                         break
                     comando_recebido = dados_raw.decode('utf-8',errors='ignore').strip()
                 except Exception as e:
@@ -133,8 +132,7 @@ class Honeypot:
                         self.pasv_aconteceu=False
                         verbo='list'
                         argumento='sem_argumento'
-                        with self.lock:
-                            gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
 
                     else:
                         socket_comunicação.send(b'425 Use PASV first.\r\n')
@@ -142,8 +140,7 @@ class Honeypot:
                 #Muda o diretorio no filesystem falso.
                 elif comando_recebido.lower().startswith('cwd'):
                     verbo,argumento=self.pegar_comando_separado(comando_recebido)
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
                     diretorio_novo=self.separar_comando(comando_recebido,socket_comunicação)
                     socket_comunicação.send(comando.cd(diretorio_novo))
 
@@ -151,8 +148,7 @@ class Honeypot:
                 elif comando_recebido.lower().startswith('pwd'):
                     verbo='pwd'
                     argumento='sem_argumento'
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
                     socket_comunicação.send(f'257 "{comando.pwd()}" is current directory.\r\n'.encode())
 
                 #Envia arquivo requisitado para o invasor
@@ -173,8 +169,7 @@ class Honeypot:
                         self.pasv_aconteceu=False
                     else:
                         socket_comunicação.send(b'550 File not found.\r\n')
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
                     
 
                 #cria pasta nova no filesystem
@@ -182,8 +177,7 @@ class Honeypot:
                     verbo,argumento=self.pegar_comando_separado(comando_recebido)
                     nova_pasta=self.separar_comando(comando_recebido,socket_comunicação)
                     socket_comunicação.send(comando.mkdir(nova_pasta))
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
                 
 
                 #Baixa arquivo do invasor para o filesystem
@@ -198,7 +192,7 @@ class Honeypot:
                     else:argumento='sem_argumento'
 
                     #Adiciona comando no banco de dados
-                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
                     comando_recebido=self.separar_comando(comando_recebido,socket_comunicação)
                     nome_perigoso_virus_recebido=comando_recebido
                     socket_comunicação.send(comando.stor(conn_dados))
@@ -208,8 +202,7 @@ class Honeypot:
                     tamanho_do_virus=comando.pegar_data_arquivo()
                     hash_do_arquivo=comando.pegar_hash_virus()
                     comando.trocar_nome_perigoso_para_hash(hash_do_arquivo)
-                    with self.lock:
-                        gerenciador.adicionar_data_arquivo(ID_de_usuario,nome_perigoso_virus_recebido,tamanho_do_virus,hash_do_arquivo)
+                    gerenciador.adicionar_data_arquivo(ID_de_usuario,nome_perigoso_virus_recebido,tamanho_do_virus,hash_do_arquivo,função_lock)
 
                 #Finaliza conexão formalmente, e loga data de finalização.
                 elif comando_recebido.lower().startswith('quit'):
@@ -221,9 +214,8 @@ class Honeypot:
                         socket_comunicação.close()
                     
                     timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
-                    with self.lock:
-                        gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
-                        self.numero_de_conexões-=1
+                    gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario,função_lock)
+                    self.numero_de_conexões-=1
                     break # Sai do loop
 
                 #logica do comando help
@@ -234,8 +226,7 @@ class Honeypot:
                         socket_comunicação.send(comando.help())
                         verbo=comando_recebido
                         argumento='sem_argumento'
-                        with self.lock:
-                            gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
                 
                 
                 #Logica do comando syst
@@ -243,16 +234,14 @@ class Honeypot:
                     socket_comunicação.send(comando.syst())
                     verbo=comando_recebido
                     argumento='sem_argumento'
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
 
                 #Logica do comando type
                 elif comando_recebido.lower().startswith('type'):
                     verbo,argumento=self.pegar_comando_separado(comando_recebido)
                     comando_recebido=self.separar_comando(comando_recebido,socket_comunicação)
                     socket_comunicação.send(comando.type(comando_recebido).encode())
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
 
                 #Logica do comando pasv
                 elif comando_recebido.lower()==('pasv'):
@@ -268,8 +257,7 @@ class Honeypot:
                     self.pasv_aconteceu=True
                     verbo='pasv'
                     argumento='sem_argumento'
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
 
 
                 #Logica para qualquer outro comando não implementado
@@ -284,8 +272,7 @@ class Honeypot:
                             argumento=comando_recebido.split(' ',1)[1]
                     else:
                         verbo,argumento=self.pegar_comando_separado(comando_recebido)
-                    with self.lock:
-                        gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando)
+                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
 
                 
                 
@@ -293,12 +280,12 @@ class Honeypot:
         except ConnectionError:
             timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
             socket_comunicação.close()
-            with self.lock:
-                gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario)
-                self.numero_de_conexões-=1
+            gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario,função_lock)
+            self.numero_de_conexões-=1
 
     #Aceita as conexões de acordo com numero de threads
     def ligar_servidor(self):
+        função_lock=self.lock
         while True:
             print(f'Esperando Conexão... ({self.numero_de_conexões}/{self.maximo_de_conexões}conectados)')
             self.numero_de_conexões+=1
@@ -309,20 +296,20 @@ class Honeypot:
                 IP_invasor,porta_invasor=endereço
                 print (f'Conexão estabelecida com endereço {IP_invasor}')
                 horario_da_conexão=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
-                ID_de_usuario=gerenciador.adicionar_nova_conexão(IP_invasor,porta_invasor,horario_da_conexão)
+                ID_de_usuario=gerenciador.adicionar_nova_conexão(IP_invasor,porta_invasor,horario_da_conexão,função_lock)
                 #pega o ID e adiciona no banco de dados
                 #print aqui funciona!!!! ou pelo menos é pra funcionar.
                 thread_interagir_cliente=threading.Thread(target=self.interagir_com_cliente,args=(socket_comunicação,ID_de_usuario),daemon=True)
                 thread_interagir_cliente.start()
                 if ID_de_usuario:
-                    função_lock=self.lock
                     thread_localizadora=threading.Thread(target=gerenciador.pesquisar_local_do_ip,args=(ID_de_usuario,função_lock),daemon=True)
                     thread_localizadora.start()
 
     def escaneador_segundo_plano(self):
+        função_lock=self.lock
         while True:
-            resultado=gerenciador.pegar_hash_arquivo_pendente()
+            resultado=gerenciador.pegar_hash_arquivo_pendente(função_lock)
             if resultado:
                 ID_de_usuario,hash_do_arquivo=resultado
-                gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario)
+                gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario,função_lock)
             time.sleep(21)
