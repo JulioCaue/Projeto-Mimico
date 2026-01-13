@@ -55,7 +55,8 @@ class gerenciador_de_banco():
                     cursor=conexão.cursor()
                     cursor.execute('''select IP_de_origem from sessões where ID_de_usuario=(?)''',(ID_de_usuario,))
                     IP_de_origem=cursor.fetchone()
-        IP_de_origem=IP_de_origem[0]
+        if IP_de_origem:
+            IP_de_origem=IP_de_origem[0]
 
         localizador=f'http://ip-api.com/json/{IP_de_origem}?fields=lat,lon'
         localizador_dados=requests.get(localizador)

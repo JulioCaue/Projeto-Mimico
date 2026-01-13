@@ -29,8 +29,6 @@ class Honeypot:
         self.lock=threading.Lock()
         self.thread_escaneadora=threading.Thread(target=self.escaneador_segundo_plano)
         self.thread_escaneadora.start()
-        self.thread_servidor=threading.Thread(target=self.ligar_servidor)
-        self.thread_servidor.start()
         self.numero_de_conexões=0
         self.maximo_de_conexões=10
 
@@ -313,3 +311,6 @@ class Honeypot:
                 ID_de_usuario,hash_do_arquivo=resultado
                 gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario,função_lock)
             time.sleep(21)
+
+servidor=Honeypot()
+servidor.ligar_servidor()
