@@ -13,6 +13,7 @@ class Logica_de_arquivos():
         self.retirar_comando=('')
         self.caracteres_proibidos = "'\"><,:?*/|\\"
         self.diretorio_anterior=self.filesystem['/']
+        self.nome_temporario_arquivo='nome_temporario'
         #verifica se o usuario está na pasta raiz atualmente. False se saiu de lá.
 
     #Lista arquivos no diretorio atual. Simples
@@ -119,13 +120,7 @@ class Logica_de_arquivos():
             return conteudo_do_arquivo,estado_do_arquivo
     
     #grava arquivo no dicionario como nomes.
-    def stor(self,conexao_dados,comando_recebido):
-        #pega nome do virus
-        nome_virus_recebido=comando_recebido
-
-        if nome_virus_recebido in self.diretorio_atual:
-            return (b'550 Requested action not taken\r\n')
-        
+    def stor(self,conexao_dados):
         bytes_virus_recebido=bytearray()
         terminado=False
         
@@ -149,11 +144,11 @@ class Logica_de_arquivos():
         finally:
             conexao_dados.settimeout(None) # Remove timeout para o loop principal voltar ao normal
 
-        with open(f'quarentena/{nome_virus_recebido}.quarentena','wb') as arquivo:
+        with open(f'quarentena/{self.nome_temporario_arquivo}.quarentena','wb') as arquivo:
             arquivo.write(bytes_virus_recebido)
             arquivo.close()
 
-        self.diretorio_atual[nome_virus_recebido]=bytes_virus_recebido
+        self.diretorio_atual[self.nome_temporario_arquivo]=bytes_virus_recebido
         return (b'226 Closing data connection. Requested file action successful.\r\n')
 
 
@@ -193,18 +188,21 @@ LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
     def type(self,comando_recebido):
         return (f'200 Type set to {comando_recebido}\r\n')
     
-    def pegar_data_arquivo(self,nome_virus_recebido):
-        tamanho_do_virus=os.path.getsize(f'quarentena/{nome_virus_recebido}.quarentena')
+    def pegar_data_arquivo(self):
+        tamanho_do_virus=os.path.getsize(f'quarentena/{self.nome_temporario_arquivo}.quarentena')
         tamanho_do_virus=(tamanho_do_virus/1048576)
         tamanho_do_virus=f'{tamanho_do_virus:.2f}'
         return tamanho_do_virus
 
-    def pegar_hash_virus(self,nome_virus_recebido,algorithm="sha256"):
+    def pegar_hash_virus(self,algorithm="sha256"):
         try:
-            with open(f'quarentena/{nome_virus_recebido}.quarentena', "rb") as f:
+            with open(f'quarentena/{self.nome_temporario_arquivo}.quarentena', "rb") as f:
                 digest = hashlib.file_digest(f, algorithm)
             return digest.hexdigest()
         except FileNotFoundError:
             return "Error: File not found"
         except ValueError as e:
             return (f"Error: {e}")
+        
+    def trocar_nome_perigoso_para_hash(self,hash_do_arquivo):
+        os.rename(f'quarentena/{self.nome_temporario_arquivo}',f'quarentena/{hash_do_arquivo}')
