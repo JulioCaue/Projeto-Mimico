@@ -28,13 +28,13 @@ class gerenciador_de_banco():
                                     (ID_de_usuario,Comando,Argumento,Timestamp)
                                     values (?,?,?,?)''',(ID_de_usuario,verbo,argumento,horario_do_comando))
 
-    def adicionar_data_arquivo(self,ID_de_usuario,nome_virus_recebido,tamanho_do_virus,hash_do_virus):
+    def adicionar_data_arquivo(self,ID_de_usuario,nome_perigoso_virus_recebido,tamanho_do_virus,hash_do_virus):
         with closing(sqlite3.connect('coletor.db')) as conexão:
             with conexão:
                 cursor=conexão.cursor()
                 cursor.execute('''insert into capturas
                                     (ID_de_usuario,Nome_do_arquivo,Tamanho_do_arquivo,Hash_do_arquivo)
-                                    values (?,?,?,?)''',(ID_de_usuario,nome_virus_recebido,tamanho_do_virus,hash_do_virus))
+                                    values (?,?,?,?)''',(ID_de_usuario,nome_perigoso_virus_recebido,tamanho_do_virus,hash_do_virus))
 
     def finalizar_sessão(self,timestamp_final,ID_de_usuario):
         with closing(sqlite3.connect('coletor.db')) as conexão:
@@ -51,7 +51,7 @@ class gerenciador_de_banco():
                 cursor.execute('''select IP_de_origem from sessões where ID_de_usuario=(?)''',(ID_de_usuario,))
                 IP_de_origem=cursor.fetchone()
 
-                localizador=f'http://ip-api.com/json/{IP_de_origem}?fields=lat,lon'
+                localizador=f'http://ip-api.com/json/{IP_de_origem[0]}?fields=lat,lon'
                 localizador_dados=requests.get(localizador)
                 dados_ip=localizador_dados.json()
                 latitude=dados_ip['lat']
