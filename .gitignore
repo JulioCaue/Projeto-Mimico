@@ -6,6 +6,3 @@ quarentena/
 #Arquivos Importantes
 coletor.db
 .env
-
-#Arquivos de Teste
-dashboard_teste.py
