@@ -61,8 +61,8 @@ class gerenciador_de_banco():
         localizador=f'http://ip-api.com/json/{IP_de_origem}?fields=lat,lon'
         localizador_dados=requests.get(localizador)
         dados_ip=localizador_dados.json()
-        latitude=dados_ip['lat']
-        longitude=dados_ip['lon']
+        latitude=dados_ip.get('lat',0.0)
+        longitude=dados_ip.get('lon',0.0)
         self.colocar_localização(ID_de_usuario,IP_de_origem,latitude,longitude,função_lock)
         time.sleep(1.5)
         
@@ -85,21 +85,31 @@ class gerenciador_de_banco():
             'accept':"application/json",
             'x-apikey':f'{virus_total_header_api}'
             }
-        dados_recebidos=requests.get(analisador, headers=headers)
-        data_analisada=dados_recebidos.json()
-
-        #pega numero de votos para malicioso.
-        votos_arquivo=data_analisada['data']['atributes']['last_analysis_stats']['malicious']
-        #pega tipo do arquivo (Exemplo: win32 EXE)
-        tipo_do_arquivo=data_analisada['data']['atributes']['type_description']
-        #tenta pegar categoria, mas se der erro, diz que é generico.
+        
         try:
-            categoria_arquivo = data_analisada['data']['threat_severity']['threat_severity_data']['popular_threat_category']
-        except (KeyError, TypeError):
-            categoria_arquivo = 'generico'
+            dados_recebidos=requests.get(analisador, headers=headers)
+            if dados_recebidos.status_code==200:
+                data_analisada=dados_recebidos.json()
+                #pega numero de votos para malicioso.
+                votos_arquivo=data_analisada['data']['attributes']['last_analysis_stats']['malicious']
+                #pega tipo do arquivo (Exemplo: win32 EXE)
+                tipo_do_arquivo=data_analisada['data']['attributes']['type_description']
+                #tenta pegar categoria, mas se der erro, diz que é generico.
+                try:
+                    categoria_arquivo = data_analisada['data']['threat_severity']['threat_severity_data']['popular_threat_category']
+                except (KeyError, TypeError):
+                    categoria_arquivo = 'generico'
 
-        self.atualisar_tabela_capturas_scan(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario,função_lock)
+            elif dados_recebidos.status_code == 404:
+                votos_arquivo=0
+                tipo_do_arquivo='desconhecido'
+                categoria_arquivo='desconhecido'
+            else:
+                print(f"Erro na API VirusTotal: {dados_recebidos.status_code} - {dados_recebidos.text}")
 
+            self.atualisar_tabela_capturas_scan(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario,função_lock)
+        except Exception as e:
+            print(f"Erro critico no scan: {e}")
     #Atualisa banco de dados com informações sobre o arquivo. Talvez seria melhor 
     #apenas se é inofensivo ou não ao invés de numero de votos?
     # Novo dia: numero é melhor. Tudo aqui, por definição, é malicioso.    
@@ -123,7 +133,7 @@ class gerenciador_de_banco():
                 ID_de_usuario,
                 Hash_do_arquivo 
                 from capturas where status='pendente'
-                ''')
+                ''',)
                 resultado=cursor.fetchone()
         if resultado:
             ID_de_usuario,hash_do_arquivo=resultado

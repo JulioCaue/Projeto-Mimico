@@ -24,7 +24,6 @@ class Honeypot:
         self.servidor.bind((self.__host,self.__porta))
         self.servidor.listen()
         self.maximo_de_conexões=10
-        self.pasv_aconteceu=False
         socket_secundario=None
         self.lock=threading.Lock()
         self.thread_escaneadora=threading.Thread(target=self.escaneador_segundo_plano)
@@ -36,10 +35,11 @@ class Honeypot:
     #Caso de fato existam mais de duas palavras presentes.
     def separar_comando(self,comando_recebido,socket_comunicação):
         comando_separado=comando_recebido.split(' ',1)
-        if len(comando_separado)>1:
+        try:
             comando_recebido=comando_separado[1]
             return comando_recebido
-        else:
+        except:
+            print (comando_separado)
             socket_comunicação.send(b'501 Syntax error in parameters or arguments.\r\n')
             return ''
         
@@ -56,6 +56,7 @@ class Honeypot:
     
     #Função que interage com cliente.
     def interagir_com_cliente(self,socket_comunicação,ID_de_usuario):
+        pasv_aconteceu=False
         função_lock=self.lock
         try:
             comando=fs.Logica_de_arquivos()
@@ -104,10 +105,13 @@ class Honeypot:
                         socket_comunicação.close()
                         gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario,função_lock)
                         self.numero_de_conexões-=1
+                        pasv_aconteceu=False
+                        print(f'Esperando Conexão... ({self.numero_de_conexões}/{self.maximo_de_conexões}conectados)')
                         break
                     comando_recebido = dados_raw.decode('utf-8',errors='ignore').strip()
                 except Exception as e:
                     print (f'Erro na conexão: {e}')
+                    self.numero_de_conexões-=1
                     break
 
                 #Salva horario que o comando foi enviado
@@ -116,7 +120,7 @@ class Honeypot:
                 #Logica de listagem das pastas falsas. Requer pasv primeiro.
                 if comando_recebido.lower().startswith('list'):
                     resp = comando.list()
-                    if self.pasv_aconteceu:
+                    if pasv_aconteceu:
                         if resp:
                             socket_comunicação.send(b'150 File status okay\r\n')
                             conn_dados, addr = socket_secundario.accept()
@@ -127,11 +131,10 @@ class Honeypot:
                         socket_comunicação.send(b'226 Closing data connection\r\n')
                         conn_dados.close()
                         socket_secundario.close()
-                        self.pasv_aconteceu=False
                         verbo='list'
                         argumento='sem_argumento'
                         gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
-
+                        pasv_aconteceu=False
                     else:
                         socket_comunicação.send(b'425 Use PASV first.\r\n')
 
@@ -164,7 +167,6 @@ class Honeypot:
                         socket_comunicação.send(b'226 Closing data connection\r\n')
                         conn_dados.close()
                         socket_secundario.close()
-                        self.pasv_aconteceu=False
                     else:
                         socket_comunicação.send(b'550 File not found.\r\n')
                     gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
@@ -180,27 +182,37 @@ class Honeypot:
 
                 #Baixa arquivo do invasor para o filesystem
                 elif comando_recebido.lower().startswith('stor'):
-                    #abre conexão
-                    if self.pasv_aconteceu:
+                    if pasv_aconteceu:
                         socket_comunicação.send(b'150 Opening data connection\r\n')
-                        conn_dados, endereco_cliente=socket_secundario.accept()
-                    verbo='stor'
-                    if len(comando_recebido.split(' ',1))>1:
-                        argumento=comando_recebido.split(' ',1)[1]
-                    else:argumento='sem_argumento'
+                        conn_dados, endereco_cliente = socket_secundario.accept()
+                        
+                        verbo = 'stor'
+                        if len(comando_recebido.split(' ', 1)) > 1:
+                            argumento = comando_recebido.split(' ', 1)[1]
+                        else:
+                            argumento = 'sem_argumento'
 
-                    #Adiciona comando no banco de dados
-                    gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
-                    comando_recebido=self.separar_comando(comando_recebido,socket_comunicação)
-                    nome_perigoso_virus_recebido=comando_recebido
-                    socket_comunicação.send(comando.stor(conn_dados))
-                    conn_dados.close()
-                    socket_secundario.close()
-                    self.pasv_aconteceu=False
-                    tamanho_do_virus=comando.pegar_data_arquivo()
-                    hash_do_arquivo=comando.pegar_hash_virus()
-                    comando.trocar_nome_perigoso_para_hash(hash_do_arquivo)
-                    gerenciador.adicionar_data_arquivo(ID_de_usuario,nome_perigoso_virus_recebido,tamanho_do_virus,hash_do_arquivo,função_lock)
+                        gerenciador.adicionar_comandos(ID_de_usuario, verbo, argumento, horario_do_comando, função_lock)
+                        
+                        comando_recebido = self.separar_comando(comando_recebido, socket_comunicação)
+                        nome_perigoso_virus_recebido = comando_recebido
+                        
+                        socket_comunicação.send(comando.stor(conn_dados))
+                        
+                        conn_dados.close()
+                        socket_secundario.close()
+                        pasv_aconteceu = False # <--- IMPORTANTE: Resetar a flag para evitar erro na proxima vez
+                        
+                        tamanho_do_virus = comando.pegar_data_arquivo()
+                        hash_do_arquivo = comando.pegar_hash_virus()
+                        comando.trocar_nome_perigoso_para_hash(hash_do_arquivo)
+                        gerenciador.adicionar_data_arquivo(ID_de_usuario, nome_perigoso_virus_recebido, tamanho_do_virus, hash_do_arquivo, função_lock)
+
+                    else:
+                        # Se não tem PASV, apenas envia erro e não faz mais nada
+                        socket_comunicação.send(b"425 Use PASV first.\r\n")
+                        # Opcional: Logar a tentativa falha
+                        gerenciador.adicionar_comandos(ID_de_usuario, 'stor', 'falha_sem_pasv', horario_do_comando, função_lock)
 
                 #Finaliza conexão formalmente, e loga data de finalização.
                 elif comando_recebido.lower().startswith('quit'):
@@ -210,10 +222,10 @@ class Honeypot:
                     except ConnectionError:
                         print ('conexão cortada pelo cliente.')
                         socket_comunicação.close()
-                    
-                    timestamp_final=datetime.datetime.now().strftime('%d-%m-%y %H:%M:%S')
+                        print(f'Esperando Conexão... ({self.numero_de_conexões}/{self.maximo_de_conexões}conectados)')
                     gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario,função_lock)
                     self.numero_de_conexões-=1
+                    pasv_aconteceu=False
                     break # Sai do loop
 
                 #logica do comando help
@@ -243,16 +255,23 @@ class Honeypot:
 
                 #Logica do comando pasv
                 elif comando_recebido.lower()==('pasv'):
-                    porta_secundaria=random.randint(49152,65535)
+                    while True:
+                        try:
+                            porta_secundaria=random.randint(49152,65535)
+                            socket_secundario=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+                            socket_secundario.bind((self.__host,porta_secundaria))
+                            socket_secundario.listen()
+                            break
+                        except Exception as e:
+                            print (e)
+                            continue
+
                     P1=porta_secundaria//256
                     P2=porta_secundaria%256
                     porta_secundaria=((P1*256)+P2)
 
-                    socket_secundario=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-                    socket_secundario.bind((self.__host,porta_secundaria))
-                    socket_secundario.listen()
                     socket_comunicação.send(f'227 Entering Passive Mode (127,0,0,1,{P1},{P2})\r\n'.encode())
-                    self.pasv_aconteceu=True
+                    pasv_aconteceu=True
                     verbo='pasv'
                     argumento='sem_argumento'
                     gerenciador.adicionar_comandos(ID_de_usuario,verbo,argumento,horario_do_comando,função_lock)
@@ -280,6 +299,8 @@ class Honeypot:
             socket_comunicação.close()
             gerenciador.finalizar_sessão(timestamp_final,ID_de_usuario,função_lock)
             self.numero_de_conexões-=1
+            pasv_aconteceu=False
+            print(f'Esperando Conexão... ({self.numero_de_conexões}/{self.maximo_de_conexões}conectados)')
 
     #Aceita as conexões de acordo com numero de threads
     def ligar_servidor(self):
@@ -307,9 +328,12 @@ class Honeypot:
         função_lock=self.lock
         while True:
             resultado=gerenciador.pegar_hash_arquivo_pendente(função_lock)
-            if resultado:
-                ID_de_usuario,hash_do_arquivo=resultado
-                gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario,função_lock)
+            try:
+                if resultado:
+                    ID_de_usuario,hash_do_arquivo=resultado
+                    gerenciador.escanear_arquivo(hash_do_arquivo,ID_de_usuario,função_lock)
+            except Exception as e:
+                print (f'Ocorreu um erro: {e}')
             time.sleep(21)
 
 servidor=Honeypot()

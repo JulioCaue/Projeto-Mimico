@@ -173,13 +173,14 @@ class Logica_de_arquivos():
 
     #Envia os comandos disponiveis atualmente
     def help(self):
-        return (b'''214 The following commands are recognized <* =>'s unimplemented>:
-CWD      XCWD*   CDUP*   XCUP*   SMNT*   QUIT    PORT*   PASV*
-EPRT*    EPSV*   ALLO*   RNFR*   RNTO*   DELE*   MDTM*   RMD*
-XRMD*    MKD     XMKD*   PWD     XPWD*   SIZE*   SYST    HELP
-NOOP*    FEAT*   OPTS*   AUTH*   CCC*    CONF*   ENC*    MIC*
-APPE*    REST*   ABOR*   STRU*   MODE*   RETR    STOR    STOU*
-LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
+        return (b"214-The following commands are recognized <* =>'s unimplemented>:\r\n"
+b" CWD      XCWD* CDUP* XCUP* SMNT* QUIT    PORT* PASV*\r\n"
+b" EPRT* EPSV* ALLO* RNFR* RNTO* DELE* MDTM* RMD*\r\n"
+b" XRMD* MKD     XMKD* PWD     XPWD* SIZE* SYST    HELP\r\n"
+b" NOOP* FEAT* OPTS* AUTH* CCC* CONF* ENC* MIC*\r\n"
+b" APPE* REST* ABOR* STRU* MODE* RETR    STOR    STOU*\r\n"
+b" LIST     NLIST* STAT* SITE* TYPE\r\n"
+b"214 Help command successful.\r\n")
     
 
     def syst(self):
@@ -205,4 +206,4 @@ LIST     NLIST*  STAT*   SITE*   TYPE\r\n''')
             return (f"Error: {e}")
         
     def trocar_nome_perigoso_para_hash(self,hash_do_arquivo):
-        os.rename(f'quarentena/{self.nome_temporario_arquivo}',f'quarentena/{hash_do_arquivo}.quarentena')
+        os.rename(f'quarentena/{self.nome_temporario_arquivo}.quarentena',f'quarentena/{hash_do_arquivo}.quarentena')
