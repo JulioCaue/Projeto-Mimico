@@ -92,5 +92,5 @@ if __name__ == '__main__':
     if not os.path.exists('templates'):
         os.makedirs('templates')
     
-    print("Iniciando Dashboard M.I.M.I.C em http://127.0.0.1:5000")
-    app.run(debug=True, port=5000)
+    print("Iniciando Dashboard M.I.M.I.C")
+    app.run(host='0.0.0.0', port=5000)

@@ -6,18 +6,22 @@ import criar_banco_de_dados
 import gerenciar_banco_de_dados
 import random
 import time
-
+import os
+from dotenv import load_dotenv
 
 #cria o banco de dados caso não exista
 criar_banco=criar_banco_de_dados
 criar_banco.criar_banco()
 gerenciador=gerenciar_banco_de_dados.gerenciador_de_banco()
 
+load_dotenv()
+IP_Publico=os.getenv('HOST_PUBLIC_IP')
+
 
 #Cria a classe honeypot
 class Honeypot:
     def __init__(self):
-        self.__host='localhost'
+        self.__host='0.0.0.0'
         self.__porta=21
         self.conexões_ativas=0
         self.servidor=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -30,6 +34,7 @@ class Honeypot:
         self.thread_escaneadora.start()
         self.numero_de_conexões=0
         self.maximo_de_conexões=10
+        self.IP_Publico=str(IP_Publico).replace('.',',')
 
     #Separa o comando e retorna oque restar no index 1 
     #Caso de fato existam mais de duas palavras presentes.
@@ -270,7 +275,7 @@ class Honeypot:
                     P2=porta_secundaria%256
                     porta_secundaria=((P1*256)+P2)
 
-                    socket_comunicação.send(f'227 Entering Passive Mode (127,0,0,1,{P1},{P2})\r\n'.encode())
+                    socket_comunicação.send(f'227 Entering Passive Mode ({self.IP_Publico},{P1},{P2})\r\n'.encode())
                     pasv_aconteceu=True
                     verbo='pasv'
                     argumento='sem_argumento'
