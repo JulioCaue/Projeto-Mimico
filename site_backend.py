@@ -83,7 +83,7 @@ def get_geo():
     conn = get_db_connection()
     if not conn: return jsonify({"error": "BD não encontrado"}), 500
     
-    locations = conn.execute('SELECT Latitude, Longitude, IP_de_origem FROM geolocalização').fetchall()
+    locations = conn.execute('SELECT Latitude, longitude AS Longitude, IP_de_origem FROM geolocalização').fetchall()
     conn.close()
     
     return jsonify([dict(ix) for ix in locations])
