@@ -14,9 +14,9 @@
         :root {
             --bg-color: #050505;
             --panel-bg: #0a0a0a;
-            --primary: #00ff41; /* Hacker Green */
-            --secondary: #d600ff; /* Cyber Purple */
-            --alert: #ff003c; /* Cyber Red */
+            --primary: #00ff41; 
+            --secondary: #d600ff; 
+            --alert: #ff003c; 
             --text-main: #e0e0e0;
             --text-dim: #6e6e6e;
             --grid-line: #1a1a1a;
@@ -115,9 +115,31 @@
             overflow-y: auto;
             font-family: 'Consolas', monospace;
             font-size: 0.85rem;
+            display: flex;
+            flex-direction: column-reverse; /* Mantém logs novos embaixo */
         }
 
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+        /* LOG ANIMATIONS */
+        @keyframes terminalFlash {
+            0% {
+                background-color: var(--primary);
+                color: #000;
+                transform: translateX(-5px);
+            }
+            100% {
+                background-color: transparent;
+                color: #fff;
+                transform: translateX(0);
+            }
+        }
+
+        .log-entry { 
+            margin-bottom: 4px; 
+            border-bottom: 1px dashed #111; 
+            padding-bottom: 2px;
+            animation: terminalFlash 0.5s ease-out; /* Efeito Matrix */
+        }
+        
         .log-time { color: var(--secondary); }
         .log-ip { color: var(--primary); }
         .log-cmd { color: #fff; }
@@ -129,10 +151,20 @@
         .danger { color: var(--alert); text-shadow: 0 0 5px var(--alert); font-weight: bold; }
         .safe { color: var(--primary); }
 
-        /* SCROLLBAR */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: var(--secondary); }
+        /* SCROLLBAR HACKER STYLE */
+        .terminal-window::-webkit-scrollbar {
+            width: 10px;
+        }
+        .terminal-window::-webkit-scrollbar-track {
+            background: #001100; 
+        }
+        .terminal-window::-webkit-scrollbar-thumb {
+            background: var(--primary); 
+            border-radius: 2px;
+        }
+        .terminal-window::-webkit-scrollbar-thumb:hover {
+            background: #fff; 
+        }
 
     </style>
 </head>
@@ -202,7 +234,6 @@
 
     <script>
         // --- 1. INITIALIZE MAP (FIXED BOUNDS) ---
-        // Definindo os limites do mundo (Sul-Oeste, Norte-Leste)
         const bounds = [
             [-90, -180], // South West
             [90, 180]    // North East
@@ -211,16 +242,15 @@
         const map = L.map('map', {
             zoomControl: false,
             attributionControl: false,
-            maxBounds: bounds,         // Impede arrastar para o vazio
-            maxBoundsViscosity: 1.0,   // Bloqueio "duro" (sem elástico)
-            minZoom: 2                 // Impede zoom out excessivo
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0,
+            minZoom: 2
         }).setView([20, 0], 2);
         
-        // Camada "Dark NoLabels" com noWrap ativado
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
             subdomains: 'abcd',
-            noWrap: true, // <--- ISSO IMPEDE A REPETIÇÃO INFINITA
+            noWrap: true,
             bounds: bounds
         }).addTo(map);
 
@@ -240,7 +270,6 @@
                 const geoRes = await fetch('/api/geo');
                 const locations = await geoRes.json();
                 
-                // Limpa marcadores
                 map.eachLayer((layer) => {
                     if(layer instanceof L.CircleMarker) {
                         map.removeLayer(layer);
@@ -259,17 +288,26 @@
                     }
                 });
 
-                // COMMANDS LOG UPDATE
+                // COMMANDS LOG UPDATE (WITH ANIMATION)
                 const cmdRes = await fetch('/api/commands');
                 const cmds = await cmdRes.json();
                 const cmdContainer = document.getElementById('cmd-log');
-                cmdContainer.innerHTML = ''; 
+                
+                // Gerar o HTML dos logs
+                let logsHTML = '';
                 cmds.forEach(c => {
-                    const div = document.createElement('div');
-                    div.className = 'log-entry';
-                    div.innerHTML = `<span class="log-time">[${c.Timestamp}]</span> <span class="log-ip">${c.IP_de_origem}</span>: <span class="log-cmd">${c.Comando} ${c.Argumento || ''}</span>`;
-                    cmdContainer.appendChild(div);
+                    logsHTML += `
+                    <div class="log-entry">
+                        <span class="log-time">[${c.Timestamp}]</span> 
+                        <span class="log-ip">${c.IP_de_origem}</span>: 
+                        <span class="log-cmd">${c.Comando} ${c.Argumento || ''}</span>
+                    </div>`;
                 });
+
+                // Só atualiza o DOM se houver mudança para evitar glitches
+                if (cmdContainer.innerHTML !== logsHTML) {
+                    cmdContainer.innerHTML = logsHTML;
+                }
 
                 // FILES & CHART UPDATE
                 const fileRes = await fetch('/api/files');
@@ -325,9 +363,9 @@
             }
         }
 
-        // Executar ao carregar
+        // Executar ao carregar e repetir
         loadDashboard();
-        setInterval(loadDashboard, 5000);
+        setInterval(loadDashboard, 2000); // 2 segundos para ficar mais ágil
 
     </script>
 </body>
