@@ -3,6 +3,7 @@
 __pycache__
 quarentena/
 keys/
+honeypot/
 
 #Arquivos Importantes
 coletor.db

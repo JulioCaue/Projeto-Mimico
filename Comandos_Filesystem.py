@@ -120,7 +120,7 @@ class Logica_de_arquivos():
             return conteudo_do_arquivo,estado_do_arquivo
     
     #grava arquivo no dicionario como nomes.
-    def stor(self,conexao_dados):
+    def stor(self,conexao_dados,nome_perigoso_virus_recebido):
         bytes_virus_recebido=bytearray()
         terminado=False
         
@@ -148,7 +148,7 @@ class Logica_de_arquivos():
             arquivo.write(bytes_virus_recebido)
             arquivo.close()
 
-        self.diretorio_atual[self.nome_temporario_arquivo]=bytes_virus_recebido
+        self.diretorio_atual[nome_perigoso_virus_recebido]=bytes_virus_recebido
         return (b'226 Closing data connection. Requested file action successful.\r\n')
 
 
@@ -198,7 +198,9 @@ b"214 Help command successful.\r\n")
     def pegar_hash_virus(self,algorithm="sha256"):
         try:
             with open(f'quarentena/{self.nome_temporario_arquivo}.quarentena', "rb") as f:
-                digest = hashlib.file_digest(f, algorithm)
+                    digest = hashlib.file_digest(f, algorithm)
+                    with open ('arquivo_log.txt','w') as log:
+                        log.write(f'Hash recebido: {str(digest)}')
             return digest.hexdigest()
         except FileNotFoundError:
             return "Error: File not found"

@@ -202,7 +202,7 @@ class Honeypot:
                         comando_recebido = self.separar_comando(comando_recebido, socket_comunicação)
                         nome_perigoso_virus_recebido = comando_recebido
                         
-                        socket_comunicação.send(comando.stor(conn_dados))
+                        socket_comunicação.send(comando.stor(conn_dados,nome_perigoso_virus_recebido))
                         
                         conn_dados.close()
                         socket_secundario.close()
