@@ -39,11 +39,11 @@ class Logica_de_arquivos():
 
             data=(f'{mes_aleatorio} {dia_aleatorio} {hora_fake}')
 
-            if isinstance(conteudo,dict):
-                linha_formatada = f"drwxr-xr-x 1 root root 4096 {data} {arquivo}"
+            if isinstance(conteudo, dict):
+                linha_formatada = f"drwxrwxrwx 1 www-data www-data 4096 {data} {arquivo}"
             else:
-                tamanho=len(conteudo)
-                linha_formatada = f"-rw-r--r-- 1 root root {tamanho} {data} {arquivo}"
+                tamanho = len(conteudo)
+                linha_formatada = f"-rwxrwxrwx 1 www-data www-data {tamanho} {data} {arquivo}"
             
             
             lista_de_arquivos.append(linha_formatada)
