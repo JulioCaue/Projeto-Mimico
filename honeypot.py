@@ -25,6 +25,7 @@ class Honeypot:
         self.__porta=21
         self.conexões_ativas=0
         self.servidor=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        self.servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.servidor.bind((self.__host,self.__porta))
         self.servidor.listen()
         self.maximo_de_conexões=10
@@ -202,15 +203,15 @@ class Honeypot:
                         comando_recebido = self.separar_comando(comando_recebido, socket_comunicação)
                         nome_perigoso_virus_recebido = comando_recebido
                         
-                        socket_comunicação.send(comando.stor(conn_dados))
+                        socket_comunicação.send(comando.stor(conn_dados,nome_perigoso_virus_recebido))
                         
                         conn_dados.close()
                         socket_secundario.close()
                         pasv_aconteceu = False # <--- IMPORTANTE: Resetar a flag para evitar erro na proxima vez
                         
-                        tamanho_do_virus = comando.pegar_data_arquivo()
                         hash_do_arquivo = comando.pegar_hash_virus()
                         comando.trocar_nome_perigoso_para_hash(hash_do_arquivo)
+                        tamanho_do_virus = comando.pegar_data_arquivo(hash_do_arquivo)
                         gerenciador.adicionar_data_arquivo(ID_de_usuario, nome_perigoso_virus_recebido, tamanho_do_virus, hash_do_arquivo, função_lock)
 
                     else:
