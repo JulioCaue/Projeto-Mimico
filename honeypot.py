@@ -186,8 +186,8 @@ class Honeypot:
                             conn_dados.close()
                             
                             # Processa Hash e DB
-                            tamanho_do_virus = comando.pegar_data_arquivo()
                             hash_do_arquivo = comando.pegar_hash_virus()
+                            tamanho_do_virus = comando.pegar_data_arquivo(hash_do_arquivo)
                             comando.trocar_nome_perigoso_para_hash(hash_do_arquivo)
                             gerenciador.adicionar_data_arquivo(ID_de_usuario, nome_arquivo, tamanho_do_virus, hash_do_arquivo, função_lock)
 

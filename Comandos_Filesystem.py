@@ -113,12 +113,13 @@ class Logica_de_arquivos:
         except:
             return "hash_error"
 
-    def pegar_data_arquivo(self):
+    def pegar_data_arquivo(self,hash_do_arquivo):
         try:
-            path = f'quarentena/{self.nome_temporario_arquivo}.quarentena'
+            path = f'quarentena/{hash_do_arquivo}.quarentena'
             size_mb = os.path.getsize(path) / (1024 * 1024)
             return f'{size_mb:.2f} MB'
-        except:
+        except Exception as e:
+            print (e)
             return "0.00 MB"
 
     def trocar_nome_perigoso_para_hash(self, novo_hash):
