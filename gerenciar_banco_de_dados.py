@@ -1,9 +1,16 @@
 import sqlite3
 from contextlib import closing
 import time
-import requests
-from dotenv import load_dotenv
+import vt  # Biblioteca oficial do VirusTotal
 import os
+from dotenv import load_dotenv
+
+# --- CONFIGURAÇÃO ---
+# Carrega o arquivo .env
+load_dotenv()
+
+# Pega a chave da variavel 'virus_total'
+API_KEY_VT = os.getenv('virus_total')
 
 class gerenciador_de_banco():
     def adicionar_nova_conexão(self,IP_invasor,porta_invasor,horario_da_conexão,função_lock):
@@ -49,70 +56,48 @@ class gerenciador_de_banco():
                                         where ID_de_usuario = (?)''',(timestamp_final,ID_de_usuario))
 
     def pesquisar_local_do_ip(self,ID_de_usuario,função_lock):
-        with função_lock:
-            with closing(sqlite3.connect('coletor.db')) as conexão:
-                with conexão:
-                    cursor=conexão.cursor()
-                    cursor.execute('''select IP_de_origem from sessões where ID_de_usuario=(?)''',(ID_de_usuario,))
-                    IP_de_origem=cursor.fetchone()
-        if IP_de_origem:
-            IP_de_origem=IP_de_origem[0]
-
-        localizador=f'http://ip-api.com/json/{IP_de_origem}?fields=lat,lon'
-        localizador_dados=requests.get(localizador)
-        dados_ip=localizador_dados.json()
-        latitude=dados_ip.get('lat',0.0)
-        longitude=dados_ip.get('lon',0.0)
-        self.colocar_localização(ID_de_usuario,IP_de_origem,latitude,longitude,função_lock)
-        time.sleep(1.5)
-        
-
-    def colocar_localização(self,ID_de_usuario,IP_de_origem,latitude,longitude,função_lock):
-        with função_lock:
-            with closing(sqlite3.connect('coletor.db')) as conexão:
-                with conexão:
-                    cursor=conexão.cursor()
-                    cursor.execute('''
-                                insert or ignore into geolocalização
-                                (ID_de_usuario,IP_de_origem,latitude,longitude)
-                                values(?,?,?,?)''',(ID_de_usuario,IP_de_origem,latitude,longitude))
+        # Geo placeholder
+        pass 
 
     def escanear_arquivo(self,hash_do_arquivo,ID_de_usuario,função_lock):
-        load_dotenv()
-        virus_total_header_api=os.getenv('virus_total')
-        analisador=f'https://www.virustotal.com/api/v3/files/{hash_do_arquivo}'
-        headers={
-            'accept':"application/json",
-            'x-apikey':f'{virus_total_header_api}'
-            }
+        print(f"[*] Iniciando Scan VT para: {hash_do_arquivo}")
         
-        try:
-            dados_recebidos=requests.get(analisador, headers=headers)
-            if dados_recebidos.status_code==200:
-                data_analisada=dados_recebidos.json()
-                #pega numero de votos para malicioso.
-                votos_arquivo=data_analisada['data']['attributes']['last_analysis_stats']['malicious']
-                #pega tipo do arquivo (Exemplo: win32 EXE)
-                tipo_do_arquivo=data_analisada['data']['attributes']['type_description']
-                #tenta pegar categoria, mas se der erro, diz que é generico.
-                try:
-                    categoria_arquivo = data_analisada['data']['threat_severity']['threat_severity_data']['popular_threat_category']
-                except (KeyError, TypeError):
-                    categoria_arquivo = 'generico'
+        if not API_KEY_VT:
+            print("[!] ERRO CRÍTICO: Variável 'virus_total' não encontrada no arquivo .env!")
+            return
 
-            elif dados_recebidos.status_code == 404:
-                votos_arquivo=0
-                tipo_do_arquivo='desconhecido'
-                categoria_arquivo='desconhecido'
-            else:
-                print(f"Erro na API VirusTotal: {dados_recebidos.status_code} - {dados_recebidos.text}")
+        try:
+            # Usa a biblioteca oficial com a chave do .env
+            with vt.Client(API_KEY_VT) as client:
+                try:
+                    arquivo = client.get_object(f"/files/{hash_do_arquivo}")
+                    
+                    stats = arquivo.last_analysis_stats
+                    votos_arquivo = stats.get('malicious', 0)
+                    tipo_do_arquivo = getattr(arquivo, 'type_description', 'desconhecido')
+                    
+                    # Tenta pegar categoria de ameaca
+                    try:
+                        categoria_arquivo = arquivo.popular_threat_category
+                    except:
+                        categoria_arquivo = 'generico'
+                        
+                    print(f"[+] Sucesso VT: {votos_arquivo} detectaram.")
+
+                except vt.APIError as e:
+                    if e.code == "NotFoundError":
+                        print("[-] Arquivo limpo ou desconhecido (Hash nao encontrado no VT).")
+                        votos_arquivo = 0
+                        tipo_do_arquivo = 'desconhecido'
+                        categoria_arquivo = 'limpo'
+                    else:
+                        raise e 
 
             self.atualisar_tabela_capturas_scan(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario,função_lock)
+            
         except Exception as e:
-            print(f"Erro critico no scan: {e}")
-    #Atualisa banco de dados com informações sobre o arquivo. Talvez seria melhor 
-    #apenas se é inofensivo ou não ao invés de numero de votos?
-    # Novo dia: numero é melhor. Tudo aqui, por definição, é malicioso.    
+            print(f"[!] Erro no Scan VT: {e}")
+
     def atualisar_tabela_capturas_scan(self,votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario,função_lock):
         with função_lock:
             with closing(sqlite3.connect('coletor.db')) as conexão:
@@ -136,7 +121,6 @@ class gerenciador_de_banco():
                 ''',)
                 resultado=cursor.fetchone()
         if resultado:
-            ID_de_usuario,hash_do_arquivo=resultado
-            return ID_de_usuario,hash_do_arquivo
+            return resultado
         else:
             return None
