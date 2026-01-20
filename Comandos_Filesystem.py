@@ -1,148 +1,209 @@
 import socket
-import os
+import os # Necessário para verificar pastas
 import random
 import hashlib
-import Pastas_filesystem as filesystem
 
-class LogicaArquivos:  # CORREÇÃO: Nome da classe em PascalCase
+class Logica_de_arquivos():
     def __init__(self):
-        self.filesystem = filesystem.dados
-        self.diretorio_atual = self.filesystem['/']
-        self.caminho_atual = []
-        self.nome_temporario_arquivo = 'nome_temporario'
-        
-        # Garante que a pasta existe na inicialização
-        if not os.path.exists('quarentena'):
-            os.makedirs('quarentena')
+        import Pastas_filesystem as filesystem
+        self.filesystem=filesystem.dados
+        #Coloca diretorio padrão de inicio como o diretorio root
+        self.diretorio_atual=self.filesystem['/']
+        self.caminho_atual=[]
+        self.retirar_comando=('')
+        self.caracteres_proibidos = "'\"><,:?*/|\\"
+        self.diretorio_anterior=self.filesystem['/']
+        self.nome_temporario_arquivo='nome_temporario'
+        #verifica se o usuario está na pasta raiz atualmente. False se saiu de lá.
 
+    #Lista arquivos no diretorio atual. Simples
     def list(self):
-        lista_de_arquivos = []
-        for arquivo, conteudo in self.diretorio_atual.items():
+        lista_de_arquivos=[]
+        for arquivo,conteudo in self.diretorio_atual.items():
             random.seed(arquivo)
-            mes = random.choice(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'])
-            dia = f"{random.randint(1, 28):02d}"
-            hora = f"{random.randint(0, 23):02d}:{random.randint(0, 59):02d}"
-            data = f"{mes} {dia} {hora}"
+            lista_de_meses=['Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            mes_aleatorio=random.choice(lista_de_meses)
 
-            if isinstance(conteudo, dict):
-                perm = "drwxr-xr-x"
-                size = 4096
+            dia_aleatorio=random.randint(1, 28)
+            if dia_aleatorio<10:
+                dia_aleatorio=str(f'0{dia_aleatorio}')
+
+            hora_aleatoria=(random.randint(0, 23))
+            if hora_aleatoria<10:
+                hora_aleatoria=str(f'0{hora_aleatoria}')
+            minuto_aleatorio=random.randint(1, 59)
+            if minuto_aleatorio<10:
+                minuto_aleatorio=str(f'0{minuto_aleatorio}')
+            hora_fake=(f'{hora_aleatoria}:{minuto_aleatorio}')
+
+            data=(f'{mes_aleatorio} {dia_aleatorio} {hora_fake}')
+
+            if isinstance(conteudo,dict):
+                linha_formatada = f"drwxr-xr-x 1 root root 4096 {data} {arquivo}"
             else:
-                perm = "-rw-r--r--"
-                size = len(conteudo)
+                tamanho=len(conteudo)
+                linha_formatada = f"-rw-r--r-- 1 root root {tamanho} {data} {arquivo}"
             
-            lista_de_arquivos.append(f"{perm} 1 root root {size} {data} {arquivo}")
+            
+            lista_de_arquivos.append(linha_formatada)
 
-        if not lista_de_arquivos: return None
-        return '\r\n'.join(lista_de_arquivos)
-
-    def cd(self, diretorio_novo):
-        if diretorio_novo == '..':
-            if not self.caminho_atual: return b'250 OK\r\n'
-            self.caminho_atual.pop()
-            self.diretorio_atual = self.filesystem['/']
-            for pasta in self.caminho_atual:
-                self.diretorio_atual = self.diretorio_atual[pasta]
-            return b"250 Directory changed.\r\n"
+        if not lista_de_arquivos:
+            return None
+        else: return ('\r\n'.join(lista_de_arquivos))
         
-        elif diretorio_novo == '/':
-            self.caminho_atual = []
-            self.diretorio_atual = self.filesystem['/']
-            return b"250 Directory changed.\r\n"
-
-        partes = diretorio_novo.strip('/').split('/')
-        temp_dir = self.diretorio_atual
+    #Diretorio antigo é o diretorio atual -> diretorio atual vira diretorio antigo + diretorio novo.
+    #'cd ' é removido antes de fazer operações com conteudo.
+    def cd(self,diretorio_novo):
+        #verifica se está voltando ou avançando.
+        if diretorio_novo=='..':
+            if self.diretorio_atual==['/']:
+                return (b'550 Directory not found.\r\n')
+            else:
+                self.diretorio_atual=self.filesystem['/']
+                try:
+                    self.caminho_atual.pop(-1)
+                except:
+                    return (b'550 Directory not found.\r\n')
+                for pasta in self.caminho_atual:
+                    self.diretorio_atual=self.diretorio_atual[pasta]
+                return (b"250 Directory successfully changed.\r\n")
         
-        try:
-            for parte in partes:
-                if not parte: continue
-                if parte in temp_dir and isinstance(temp_dir[parte], dict):
-                    temp_dir = temp_dir[parte]
+        elif diretorio_novo=='/':
+            self.caminho_atual=[]
+            self.diretorio_atual=self.filesystem['/']
+            return (b"250 Directory successfully changed.\r\n")
+            
+        caminho_temp=diretorio_novo.strip('/')
+        partes=caminho_temp.split('/')
+        navegação_temp=self.diretorio_atual
+
+        caminho_absoluto=diretorio_novo.startswith('/')
+
+        if caminho_absoluto:
+            navegação_temp=self.filesystem['/']
+
+        for parte in partes:
+            if parte in navegação_temp:
+                conteudo=navegação_temp[parte]
+                if isinstance(conteudo,dict):
+                    navegação_temp=conteudo
                 else:
-                    return b'550 Not a directory.\r\n'
+                    return (b'550 Not a directory.\r\n')
+            else:
+                return (b'550 File or directory not found.\r\n')
             
-            self.diretorio_atual = temp_dir
+        if caminho_absoluto:
+            self.caminho_atual=partes
+            self.diretorio_atual=navegação_temp
+        
+        else:
             for parte in partes:
-                if parte: self.caminho_atual.append(parte)
-            return b"250 Directory changed.\r\n"
-        except:
-             return b'550 Not a directory.\r\n'
+                self.caminho_atual.append(parte)
+            self.diretorio_atual=navegação_temp
+        return (b"250 Directory successfully changed.\r\n")
 
+    #Lista caminho atual
     def pwd(self):
-        path = '/' + '/'.join(self.caminho_atual)
-        if len(path) > 1 and path.endswith('/'): path = path[:-1]
-        return path
+        return ('/' + '/'.join(self.caminho_atual))
 
-    def stor(self, conexao_dados, nome_arquivo):
-        # Reforço de segurança para garantir pasta
+    
+    #Envia arquivo ao cliente
+    def retr(self, arquivo_requisitado):
+        #verifica se o arquivo está na pasta. Se estiver, envia o conteudo. Se não, da erro.
+        if arquivo_requisitado in self.diretorio_atual:
+            conteudo_do_arquivo=self.diretorio_atual[arquivo_requisitado]
+            estado_do_arquivo=True
+            return conteudo_do_arquivo,estado_do_arquivo
+        else:
+            conteudo_do_arquivo=None
+            estado_do_arquivo=False
+            return conteudo_do_arquivo,estado_do_arquivo
+    
+    #grava arquivo no dicionario como nomes.
+    def stor(self,conexao_dados):
+        bytes_virus_recebido=bytearray()
+        terminado=False
+        
+        # Cria a pasta quarentena se não existir (evita erro de FileNotFoundError)
         if not os.path.exists('quarentena'):
             os.makedirs('quarentena')
 
-        conexao_dados.settimeout(10.0) # Timeout maior para garantir recebimento
-        caminho_temp = f'quarentena/{self.nome_temporario_arquivo}.quarentena'
+        # CORREÇÃO CRÍTICA: Timeout para evitar loop infinito
+        conexao_dados.settimeout(1.0) 
         
         try:
-            with open(caminho_temp, 'wb') as f:
-                bytes_recebidos = 0
-                while True:
-                    try:
-                        data = conexao_dados.recv(4096)
-                        if not data: break
-                        f.write(data)
-                        bytes_recebidos += len(data)
-                    except socket.timeout:
-                        break
-            
-            print(f"[DEBUG] STOR: Recebidos {bytes_recebidos} bytes.")
-            self.diretorio_atual[nome_arquivo] = b'FAKE_CONTENT'
-            return b'226 Transfer complete.\r\n'
-            
-        except Exception as e:
-            print(f"[!] Erro ao gravar arquivo em disco: {e}")
-            return b'451 Error writing file.\r\n'
+            while terminado==False:
+                try:
+                    data=conexao_dados.recv(1024)
+                    if not data:
+                        terminado=True
+                    else:
+                        bytes_virus_recebido+=data
+                except socket.timeout:
+                    terminado=True # Sai do loop se não vier mais nada
+        finally:
+            conexao_dados.settimeout(None) # Remove timeout para o loop principal voltar ao normal
 
-    def mkdir(self, pasta):
-        if pasta not in self.diretorio_atual:
-            self.diretorio_atual[pasta] = {}
-            return b'257 Directory created.\r\n'
-        return b'550 Directory exists.\r\n'
+        with open(f'quarentena/{self.nome_temporario_arquivo}.quarentena','wb') as arquivo:
+            arquivo.write(bytes_virus_recebido)
+            arquivo.close()
+
+        self.diretorio_atual[self.nome_temporario_arquivo]=bytes_virus_recebido
+        return (b'226 Closing data connection. Requested file action successful.\r\n')
+
+
+    #cria um diretorio novo
+    def mkdir(self,nova_pasta):
+        for caractere in nova_pasta:
+            if caractere in self.caracteres_proibidos or caractere == (' ',''):
+                return (b'553 File name not allowed.\r\n')
+            
+        for caractere in nova_pasta:
+            if caractere in [".",'..','']:
+                return (b'553 File name not allowed.\r\n')
+        if nova_pasta in self.diretorio_atual:
+            return (b'550 Directory already exists.\r\n')
+        elif nova_pasta in self.diretorio_atual:
+            return (b'550 Directory already exists.\r\n')
+        else:
+            #adiciona nova key (vazia) ao filesystem (AKA nova pasta).
+            self.diretorio_atual[nova_pasta]={}
+            return (b'257 Directory created.\r\n')
+
+
+    #Envia os comandos disponiveis atualmente
+    def help(self):
+        return (b"214-The following commands are recognized <* =>'s unimplemented>:\r\n"
+b" CWD      XCWD* CDUP* XCUP* SMNT* QUIT    PORT* PASV*\r\n"
+b" EPRT* EPSV* ALLO* RNFR* RNTO* DELE* MDTM* RMD*\r\n"
+b" XRMD* MKD     XMKD* PWD     XPWD* SIZE* SYST    HELP\r\n"
+b" NOOP* FEAT* OPTS* AUTH* CCC* CONF* ENC* MIC*\r\n"
+b" APPE* REST* ABOR* STRU* MODE* RETR    STOR    STOU*\r\n"
+b" LIST     NLIST* STAT* SITE* TYPE\r\n"
+b"214 Help command successful.\r\n")
     
-    def pegar_hash_arquivo_temporario(self):
-        try:
-            sha256 = hashlib.sha256()
-            path = f'quarentena/{self.nome_temporario_arquivo}.quarentena'
-            if not os.path.exists(path): return None # Retorna None explícito se falhar
-            
-            with open(path, "rb") as f:
-                while chunk := f.read(4096):
-                    sha256.update(chunk)
-            return sha256.hexdigest()
-        except:
-            return None
 
-    def pegar_tamanho_arquivo(self, hash_do_arquivo):
-        try:
-            path = f'quarentena/{hash_do_arquivo}.quarentena'
-            if not os.path.exists(path): return 0
-            return os.path.getsize(path)
-        except:
-            return 0
+    def syst(self):
+        return (b'215 UNKNOWN Type: L8\r\n')
+    
+    def type(self,comando_recebido):
+        return (f'200 Type set to {comando_recebido}\r\n')
+    
+    def pegar_data_arquivo(self):
+        tamanho_do_virus=os.path.getsize(f'quarentena/{self.nome_temporario_arquivo}.quarentena')
+        tamanho_do_virus=(tamanho_do_virus/1048576)
+        tamanho_do_virus=f'{tamanho_do_virus:.2f}'
+        return tamanho_do_virus
 
-    def renomear_arquivo_final(self, hash_final):
+    def pegar_hash_virus(self,algorithm="sha256"):
         try:
-            old = f'quarentena/{self.nome_temporario_arquivo}.quarentena'
-            new = f'quarentena/{hash_final}.quarentena'
-            
-            if not os.path.exists(old): return False
-            
-            if os.path.exists(new): os.remove(new) # Remove duplicata se já existir
-            os.rename(old, new)
-            return True
-        except Exception as e:
-            print(f"Erro rename: {e}")
-            return False
-            
-    def retr(self, arquivo): return b'', False
-    def help(self): return b'214 Help OK.\r\n'
-    def syst(self): return b'215 UNIX.\r\n'
-    def type(self, arg): return b'200 OK.\r\n'
+            with open(f'quarentena/{self.nome_temporario_arquivo}.quarentena', "rb") as f:
+                digest = hashlib.file_digest(f, algorithm)
+            return digest.hexdigest()
+        except FileNotFoundError:
+            return "Error: File not found"
+        except ValueError as e:
+            return (f"Error: {e}")
+        
+    def trocar_nome_perigoso_para_hash(self,hash_do_arquivo):
+        os.rename(f'quarentena/{self.nome_temporario_arquivo}.quarentena',f'quarentena/{hash_do_arquivo}.quarentena')
