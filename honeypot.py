@@ -250,8 +250,22 @@ class Honeypot:
                 print(f"Erro no loop principal: {e}")
 
     def escaneador_segundo_plano(self):
-        # Placeholder para thread de scan
-        pass
+        função_lock = self.lock
+        print("--- Scanner de Malware Iniciado (Segundo Plano) ---")
+        while True:
+            try:
+                # Busca se tem alguem com status 'pendente' no banco
+                resultado = gerenciador.pegar_hash_arquivo_pendente(função_lock)
+                if resultado:
+                    ID_de_usuario, hash_do_arquivo = resultado
+                    print(f"[*] Arquivo pendente encontrado! Hash: {hash_do_arquivo}")
+                    gerenciador.escanear_arquivo(hash_do_arquivo, ID_de_usuario, função_lock)
+                else:
+                    # Se nao tem nada, dorme por 10 segundos
+                    time.sleep(10)
+            except Exception as e:
+                print(f"Erro na thread do scanner: {e}")
+                time.sleep(10)
 
 if __name__ == "__main__":
     servidor = Honeypot()
