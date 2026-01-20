@@ -2,6 +2,7 @@ import socket
 import os # Necessário para verificar pastas
 import random
 import hashlib
+import uuid
 
 class Logica_de_arquivos():
     def __init__(self):
@@ -13,7 +14,7 @@ class Logica_de_arquivos():
         self.retirar_comando=('')
         self.caracteres_proibidos = "'\"><,:?*/|\\"
         self.diretorio_anterior=self.filesystem['/']
-        self.nome_temporario_arquivo='nome_temporario'
+        self.nome_temporario_arquivo=f'nome_temporario_{uuid.uuid4()}'
         #verifica se o usuario está na pasta raiz atualmente. False se saiu de lá.
 
     #Lista arquivos no diretorio atual. Simples
@@ -120,7 +121,7 @@ class Logica_de_arquivos():
             return conteudo_do_arquivo,estado_do_arquivo
     
     #grava arquivo no dicionario como nomes.
-    def stor(self,conexao_dados):
+    def stor(self,conexao_dados,nome_perigoso_virus_recebido):
         bytes_virus_recebido=bytearray()
         terminado=False
         
@@ -148,7 +149,7 @@ class Logica_de_arquivos():
             arquivo.write(bytes_virus_recebido)
             arquivo.close()
 
-        self.diretorio_atual[self.nome_temporario_arquivo]=bytes_virus_recebido
+        self.diretorio_atual[nome_perigoso_virus_recebido]=bytes_virus_recebido
         return (b'226 Closing data connection. Requested file action successful.\r\n')
 
 
@@ -189,17 +190,18 @@ b"214 Help command successful.\r\n")
     def type(self,comando_recebido):
         return (f'200 Type set to {comando_recebido}\r\n')
     
-    def pegar_data_arquivo(self):
-        tamanho_do_virus=os.path.getsize(f'quarentena/{self.nome_temporario_arquivo}.quarentena')
-        tamanho_do_virus=(tamanho_do_virus/1048576)
-        tamanho_do_virus=f'{tamanho_do_virus:.2f}'
+    def pegar_data_arquivo(self,hash_do_arquivo):
+        tamanho_do_virus=os.path.getsize(f'quarentena/{hash_do_arquivo}.quarentena')
         return tamanho_do_virus
 
     def pegar_hash_virus(self,algorithm="sha256"):
         try:
+            sha256_hash = hashlib.sha256()
             with open(f'quarentena/{self.nome_temporario_arquivo}.quarentena', "rb") as f:
-                digest = hashlib.file_digest(f, algorithm)
-            return digest.hexdigest()
+                for byte_block in iter(lambda: f.read(4098),b''):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+
         except FileNotFoundError:
             return "Error: File not found"
         except ValueError as e:
