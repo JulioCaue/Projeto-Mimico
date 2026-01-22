@@ -21,7 +21,7 @@ IP_Publico=os.getenv('HOST_PUBLIC_IP')
 #Cria a classe honeypot
 class Honeypot:
     def __init__(self):
-        self.__host='localhost'
+        self.__host='0.0.0.0'
         self.__porta=21
         self.conexões_ativas=0
         self.servidor=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
