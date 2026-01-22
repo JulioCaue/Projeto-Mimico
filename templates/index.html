@@ -52,9 +52,15 @@
             padding: 5px 10px;
             font-weight: bold;
             box-shadow: 0 0 10px var(--primary);
+            animation: pulse-badge 2s infinite;
         }
 
-        /* GRID LAYOUT */
+        @keyframes pulse-badge {
+            0% { box-shadow: 0 0 10px var(--primary); }
+            50% { box-shadow: 0 0 20px var(--primary); }
+            100% { box-shadow: 0 0 10px var(--primary); }
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -62,7 +68,6 @@
             margin-bottom: 20px;
         }
 
-        /* CARDS */
         .card {
             background: var(--panel-bg);
             border: 1px solid var(--primary);
@@ -74,7 +79,6 @@
         .card h3 { font-size: 0.8rem; color: var(--secondary); margin-bottom: 5px; }
         .card .value { font-size: 2rem; font-weight: bold; color: var(--primary); }
 
-        /* CHARTS & MAPS CONTAINERS */
         .row-2 {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -100,7 +104,6 @@
 
         #map { height: 100%; width: 100%; background: #000; }
 
-        /* TABLES & LOGS */
         .row-3 {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -112,12 +115,46 @@
             background: #000;
             border: 1px solid var(--text-dim);
             padding: 10px;
-            overflow-y: auto;
+            overflow-y: hidden; /* Esconde scroll lateral */
             font-family: 'Consolas', monospace;
             font-size: 0.85rem;
+            display: flex;
+            flex-direction: column; 
+            /* Importante para a cascata funcionar de cima pra baixo */
         }
 
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+        /* --- ANIMAÇÕES DE ENTRADA (MATRIX STYLE) --- */
+        @keyframes slide-in-flash {
+            0% { 
+                opacity: 0; 
+                transform: translateX(-20px); 
+                background-color: var(--primary); 
+                color: #000; 
+            }
+            20% {
+                opacity: 1;
+                transform: translateX(0);
+                background-color: var(--primary); 
+                color: #000;
+            }
+            100% { 
+                background-color: transparent; 
+                color: var(--text-main); 
+            }
+        }
+
+        .log-entry { 
+            margin-bottom: 4px; 
+            border-bottom: 1px solid #111; 
+            padding-bottom: 2px;
+            opacity: 1; /* Padrão visível */
+        }
+
+        /* Classe aplicada a novos itens (ou itens de carga inicial) */
+        .new-entry {
+            animation: slide-in-flash 1s ease-out forwards;
+        }
+
         .log-time { color: var(--secondary); }
         .log-ip { color: var(--primary); }
         .log-cmd { color: #fff; }
@@ -128,18 +165,12 @@
         
         .danger { color: var(--alert); text-shadow: 0 0 5px var(--alert); font-weight: bold; }
         .safe { color: var(--primary); }
-
-        /* SCROLLBAR */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: var(--secondary); }
-
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>PROJETO_MIMICO <span style="font-size:0.5em; color:var(--secondary)">v3.0</span></h1>
+        <h1>PROJETO_MIMICO <span style="font-size:0.5em; color:var(--secondary)">v3.2 FINAL</span></h1>
         <div class="status-badge">SISTEMA ONLINE</div>
     </div>
 
@@ -178,8 +209,7 @@
     <div class="row-3">
         <div class="panel-container">
             <div class="panel-title">FEED DE COMANDOS (LOG)</div>
-            <div class="terminal-window" id="cmd-log">
-                </div>
+            <div class="terminal-window" id="cmd-log"></div>
         </div>
         <div class="panel-container">
             <div class="panel-title">CAPTURAS RECENTES</div>
@@ -193,89 +223,101 @@
                             <th>STATUS</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
     </div>
 
     <script>
-        // --- 1. INITIALIZE MAP (FIXED BOUNDS) ---
-        // Definindo os limites do mundo (Sul-Oeste, Norte-Leste)
-        const bounds = [
-            [-90, -180], // South West
-            [90, 180]    // North East
-        ];
+        // --- GERADOR DE CORES INFINITAS (NEON) ---
+        function generateCyberColors(count) {
+            const colors = [];
+            for (let i = 0; i < count; i++) {
+                // HSL: Matiz varia (0-360), Saturação 100%, Luminosidade 50% (Neon puro)
+                // Usamos um passo 'golden ratio' para distribuir bem as cores
+                const hue = Math.floor((i * 137.5) % 360); 
+                colors.push(`hsl(${hue}, 100%, 50%)`);
+            }
+            return colors;
+        }
 
+        // Estado Global
+        let knownCommandIds = new Set();
+        let isFirstLoad = true;
+        let cyberPalette = generateCyberColors(20); // Gera 20 cores iniciais
+
+        // --- MAPA ---
+        const bounds = [[-90, -180], [90, 180]];
         const map = L.map('map', {
-            zoomControl: false,
-            attributionControl: false,
-            maxBounds: bounds,         // Impede arrastar para o vazio
-            maxBoundsViscosity: 1.0,   // Bloqueio "duro" (sem elástico)
-            minZoom: 2                 // Impede zoom out excessivo
+            zoomControl: false, attributionControl: false,
+            maxBounds: bounds, maxBoundsViscosity: 1.0, minZoom: 2
         }).setView([20, 0], 2);
-        
-        // Camada "Dark NoLabels" com noWrap ativado
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19,
-            subdomains: 'abcd',
-            noWrap: true, // <--- ISSO IMPEDE A REPETIÇÃO INFINITA
-            bounds: bounds
+            maxZoom: 19, subdomains: 'abcd', noWrap: true, bounds: bounds
         }).addTo(map);
 
-        // --- 2. FETCH & UPDATE DATA ---
         async function loadDashboard() {
             try {
-                // KPI UPDATE
-                const statsRes = await fetch('/api/stats');
-                const stats = await statsRes.json();
-                
+                // 1. KPI
+                const stats = await (await fetch('/api/stats')).json();
                 document.getElementById('kpi-attacks').innerText = stats.total_attacks;
                 document.getElementById('kpi-malware').innerText = stats.total_malware;
                 document.getElementById('kpi-ips').innerText = stats.unique_ips;
                 document.getElementById('kpi-avg').innerText = stats.avg_virus;
 
-                // GEO UPDATE
-                const geoRes = await fetch('/api/geo');
-                const locations = await geoRes.json();
-                
-                // Limpa marcadores
-                map.eachLayer((layer) => {
-                    if(layer instanceof L.CircleMarker) {
-                        map.removeLayer(layer);
-                    }
-                });
-                
+                // 2. GEO
+                const locations = await (await fetch('/api/geo')).json();
+                map.eachLayer(l => { if(l instanceof L.CircleMarker) map.removeLayer(l); });
                 locations.forEach(loc => {
                     if(loc.Latitude && loc.Longitude) {
                         L.circleMarker([loc.Latitude, loc.Longitude], {
-                            color: '#ff003c',
-                            fillColor: '#ff003c',
-                            fillOpacity: 0.7,
-                            radius: 5,
-                            weight: 1
-                        }).addTo(map).bindPopup(`IP ALVO: ${loc.IP_de_origem}`);
+                            color: '#ff003c', fillColor: '#ff003c', fillOpacity: 0.7, radius: 5, weight: 1
+                        }).addTo(map).bindPopup(`IP: ${loc.IP_de_origem}`);
                     }
                 });
 
-                // COMMANDS LOG UPDATE
-                const cmdRes = await fetch('/api/commands');
-                const cmds = await cmdRes.json();
+                // 3. LOG DE COMANDOS (Com Cascata na Entrada)
+                const cmds = await (await fetch('/api/commands')).json();
                 const cmdContainer = document.getElementById('cmd-log');
-                cmdContainer.innerHTML = ''; 
-                cmds.forEach(c => {
-                    const div = document.createElement('div');
-                    div.className = 'log-entry';
-                    div.innerHTML = `<span class="log-time">[${c.Timestamp}]</span> <span class="log-ip">${c.IP_de_origem}</span>: <span class="log-cmd">${c.Comando} ${c.Argumento || ''}</span>`;
-                    cmdContainer.appendChild(div);
+                
+                // Processa do mais antigo para o novo para inserir no topo corretamente
+                const reversedCmds = [...cmds].reverse();
+                
+                let addedCount = 0; // Contador para o delay da cascata
+
+                reversedCmds.forEach((c) => {
+                    if (!knownCommandIds.has(c.ID_do_comando)) {
+                        knownCommandIds.add(c.ID_do_comando);
+
+                        const div = document.createElement('div');
+                        div.className = 'log-entry new-entry'; // Sempre anima
+                        div.innerHTML = `<span class="log-time">[${c.Timestamp}]</span> <span class="log-ip">${c.IP_de_origem}</span>: <span class="log-cmd">${c.Comando} ${c.Argumento || ''}</span>`;
+
+                        // SE FOR A PRIMEIRA CARGA: Adiciona delay para efeito cascata
+                        if (isFirstLoad) {
+                            // Delay aumenta 50ms para cada item (efeito Matrix)
+                            // Invertemos a ordem visual (addedCount) para que o topo apareça por ultimo ou sequencial
+                            div.style.animationDelay = `${addedCount * 0.05}s`;
+                            addedCount++;
+                        } else {
+                            // Se for dado novo ao vivo, sem delay
+                            div.style.animationDelay = '0s';
+                        }
+
+                        cmdContainer.prepend(div);
+                    }
                 });
+                
+                // Limpeza do DOM
+                while (cmdContainer.children.length > 50) cmdContainer.removeChild(cmdContainer.lastChild);
+                
+                isFirstLoad = false;
 
-                // FILES & CHART UPDATE
-                const fileRes = await fetch('/api/files');
-                const fileData = await fileRes.json();
-
-                // Table
+                // 4. GRÁFICO (Cores Infinitas + Animação de Entrada)
+                const fileData = await (await fetch('/api/files')).json();
+                
+                // Tabela
                 const tableBody = document.querySelector('#file-table tbody');
                 tableBody.innerHTML = '';
                 fileData.recent_files.forEach(f => {
@@ -290,45 +332,54 @@
                     tableBody.appendChild(tr);
                 });
 
-                // Chart Update
+                // Gráfico
                 const ctx = document.getElementById('fileChart').getContext('2d');
-                if(window.myPieChart) window.myPieChart.destroy();
-
                 const labels = fileData.file_types.map(t => t.tipo_de_arquivo);
                 const counts = fileData.file_types.map(t => t.count);
+                
+                // Gera cores suficientes se houver muitos tipos
+                if (labels.length > cyberPalette.length) {
+                    cyberPalette = generateCyberColors(labels.length + 5);
+                }
 
-                window.myPieChart = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            data: counts,
-                            backgroundColor: ['#00ff41', '#d600ff', '#ff003c', '#00eaff', '#fffb00'],
-                            borderColor: '#050505',
-                            borderWidth: 3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'right',
-                                labels: { color: '#e0e0e0', font: { family: 'Courier New' }, boxWidth: 15 }
+                if(window.myPieChart) {
+                    window.myPieChart.data.labels = labels;
+                    window.myPieChart.data.datasets[0].data = counts;
+                    window.myPieChart.data.datasets[0].backgroundColor = cyberPalette;
+                    window.myPieChart.update('none'); // Update suave sem girar tudo de novo
+                } else {
+                    window.myPieChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: cyberPalette,
+                                borderColor: '#050505',
+                                borderWidth: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { animateRotate: true, duration: 1500 }, // GIRA AO ENTRAR
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: { color: '#e0e0e0', font: { family: 'Courier New' }, boxWidth: 15 }
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
 
             } catch (err) {
-                console.error("Erro ao carregar dados:", err);
+                console.error("Erro no dashboard:", err);
             }
         }
 
-        // Executar ao carregar
         loadDashboard();
-        setInterval(loadDashboard, 5000);
-
+        setInterval(loadDashboard, 3000);
     </script>
 </body>
 </html>

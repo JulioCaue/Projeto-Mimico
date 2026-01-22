@@ -43,7 +43,7 @@ def get_files():
     conn = get_db_connection()
     if not conn: return jsonify({"error": "BD não encontrado"}), 500
     
-    # Busca os dados brutos (Tamanho vem em Bytes agora)
+    # Busca os dados brutos
     files = conn.execute('''
         SELECT Nome_do_arquivo, Tamanho_do_arquivo, Numero_de_votos_malicioso, Status, tipo_de_arquivo
         FROM capturas 
@@ -61,30 +61,22 @@ def get_files():
     # --- FORMATAÇÃO DOS DADOS ---
     lista_formatada = []
     for f in files:
-        # Converte a linha do banco (Row) para Dicionário editável
         item = dict(f)
         tamanho_bytes = item['Tamanho_do_arquivo']
-        
-        # Lógica de formatação inteligente
         try:
-            # Se for None ou 0, mostra 0 Bytes
             if not tamanho_bytes:
                 item['Tamanho_do_arquivo'] = "0 Bytes"
             else:
-                # Converte para float para garantir a conta
                 bytes_val = float(tamanho_bytes)
-                
-                # Se for menor que 1 MB, mostra em KB ou Bytes
                 if bytes_val < 1024:
                     item['Tamanho_do_arquivo'] = f"{int(bytes_val)} Bytes"
-                elif bytes_val < 1048576: # Menor que 1 MB
+                elif bytes_val < 1048576:
                     kb_val = bytes_val / 1024
                     item['Tamanho_do_arquivo'] = f"{kb_val:.1f} KB"
-                else: # Maior que 1 MB
+                else:
                     mb_val = bytes_val / 1048576
                     item['Tamanho_do_arquivo'] = f"{mb_val:.2f} MB"
         except Exception as e:
-            # Em caso de erro (dado sujo no banco antigo), mostra erro mas não quebra o site
             item['Tamanho_do_arquivo'] = "N/A"
             
         lista_formatada.append(item)
@@ -99,11 +91,12 @@ def get_commands():
     conn = get_db_connection()
     if not conn: return jsonify({"error": "BD não encontrado"}), 500
     
+    # ADICIONADO: ID_do_comando para controle de animação
     query = '''
-        SELECT c.Timestamp, s.IP_de_origem, c.Comando, c.Argumento
+        SELECT c.ID_do_comando, c.Timestamp, s.IP_de_origem, c.Comando, c.Argumento
         FROM comandos c
         JOIN sessões s ON c.ID_de_usuario = s.ID_de_usuario
-        ORDER BY c.Timestamp DESC LIMIT 50
+        ORDER BY c.ID_do_comando DESC LIMIT 50
     '''
     cmds = conn.execute(query).fetchall()
     conn.close()
@@ -125,4 +118,4 @@ if __name__ == '__main__':
         os.makedirs('templates')
     
     print("Iniciando Dashboard M.I.M.I.C")
-    app.run(host='127.0.0.1', port=5000)
+    app.run(host='0.0.0.0', port=5000)

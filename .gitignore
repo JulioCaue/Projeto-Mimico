@@ -8,3 +8,9 @@ honeypot/
 #Arquivos Importantes
 coletor.db
 .env
+
+#Ultima versão do banco de dados, usada na apresentação.
+coletor_servidor_aposentado.db
+
+#Teste
+inserir_virus.py
