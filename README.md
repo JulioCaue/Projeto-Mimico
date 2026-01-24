@@ -43,7 +43,7 @@ This software is designed to be attacked.
 To test the project safely without exposing your network:
 
 1.  **Clone the repository:**
-    `git clone https://github.com/SEU-USUARIO/mimico.git`
+    `git clone https://github.com/JulioCaue/Projeto-Mimico.git`
 
 2.  **Install dependencies:**
     `pip install -r requirements.txt`
