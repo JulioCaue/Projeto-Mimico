@@ -43,7 +43,7 @@ Este software foi projetado para ser atacado.
 Para testar o projeto com segurança sem expor sua rede:
 
 1.  **Clone o repositório:**
-    `git clone https://github.com/SEU-USUARIO/mimico.git`
+    `git clone https://github.com/JulioCaue/Projeto-Mimico.git`
 
 2.  **Instale as dependências:**
     `pip install -r requirements.txt`
