@@ -10,8 +10,11 @@ import os
 from dotenv import load_dotenv
 
 #cria o banco de dados caso não exista
-criar_banco=criar_banco_de_dados
-criar_banco.criar_banco()
+if not os.path.exists('coletor.db'):
+    criar_banco=criar_banco_de_dados
+    criar_banco.criar_banco()
+
+
 gerenciador=gerenciar_banco_de_dados.gerenciador_de_banco()
 
 load_dotenv()
