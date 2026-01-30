@@ -110,9 +110,8 @@ class gerenciador_de_banco():
             self.atualisar_tabela_capturas_scan(votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario,função_lock)
         except Exception as e:
             print(f"Erro critico no scan: {e}")
-    #Atualisa banco de dados com informações sobre o arquivo. Talvez seria melhor 
-    #apenas se é inofensivo ou não ao invés de numero de votos?
-    # Novo dia: numero é melhor. Tudo aqui, por definição, é malicioso.    
+
+
     def atualisar_tabela_capturas_scan(self,votos_arquivo,tipo_do_arquivo,categoria_arquivo,ID_de_usuario,função_lock):
         with função_lock:
             with closing(sqlite3.connect('coletor.db')) as conexão:
