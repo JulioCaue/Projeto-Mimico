@@ -53,6 +53,7 @@ To test the project safely without exposing your network:
     ```env
     HOST_PUBLIC_IP=127.0.0.1
     virus_total=YOUR_API_KEY_HERE
+    app_porta=YOUR_DESIRED_PORT_FOR_DASHBOARD_HERE
     ```
 
 4.  **Run the Honeypot (Server):**
