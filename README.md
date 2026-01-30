@@ -10,8 +10,8 @@ Mimico is a medium-interaction Honeypot developed in Python. It emulates a vulne
 
 Unlike simple port listeners (low interaction), Mimico simulates a complete virtual file system (Fake FS), allowing attackers to navigate directories, upload files, and execute commands. All activity is contained within the Python environment, isolated from the host operating system.
 
-### Frontend Disclaimer
-**Note on the Interface:** The primary focus of this project is the Backend logic (Sockets, Threading, Database Management). The Web Dashboard (HTML/CSS/JS) was generated with AI assistance to serve as a visualization tool for the backend data.
+### Frontend and API Status
+The Web Dashboard is in a transition phase. While the visual interface (HTML/CSS/JS) is a legacy version designed for the initial prototype, the Backend has been entirely refactored by to a modern FastAPI architecture.
 
 ### Key Features
 
