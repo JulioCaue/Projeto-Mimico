@@ -11,7 +11,7 @@ O Mimico é um Honeypot de média interatividade desenvolvido em Python. Ele emu
 Diferente de listeners simples (baixa interatividade), o Mimico simula um sistema de arquivos virtual completo (Fake FS), permitindo que atacantes naveguem por diretórios, enviem arquivos e executem comandos. Toda a atividade é contida dentro do ambiente Python, isolada do sistema operacional real.
 
 ### Status do Frontend e API
-O Dashboard Web está em fase de transição. Enquanto a interface visual (HTML/CSS/JS) é uma versão legada do protótipo inicial, o Backend foi integralmente refatorado para uma arquitetura moderna em FastAPI.
+O Dashboard Web está em fase de transição. Enquanto a interface visual (HTML/CSS/JS) é uma versão legada do protótipo inicial, o Backend foi integralmente refatorado para uma arquitetura moderna em FastAPI. Por esse motivo, a visualização do Dashboard não está disponível no momento.
 
 ### Funcionalidades Principais
 
@@ -53,6 +53,7 @@ Para testar o projeto com segurança sem expor sua rede:
     ```env
     HOST_PUBLIC_IP=127.0.0.1
     virus_total=SUA_API_KEY_AQUI
+    app_porta=SUA_PORTA_DESEJADA_PARA_DASHBOARD_AQUI
     ```
 
 4.  **Execute o Honeypot (Servidor):**
