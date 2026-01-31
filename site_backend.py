@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import pydantic
 import uvicorn
 from dotenv import load_dotenv
+from fastapi.responses import FileResponse
 
 #cria objeto app e pega nome do banco de dados
 app = FastAPI()
@@ -28,7 +29,9 @@ def pegar_conexão_BD():
     conn = sqlite3.connect(NOME_BD)
     return conn
 
-#cria modelo para status
+
+
+#cria modelos para endpoints
 class status_modelo(pydantic.BaseModel):
     total_de_ataques: int
     total_malware: int
@@ -36,15 +39,62 @@ class status_modelo(pydantic.BaseModel):
     media_virus: float
 
 
+class item_arquivos_logs(pydantic.BaseModel):
+    Nome_do_arquivo:str
+    Tamanho_do_arquivo:int
+    Numero_de_votos_malicioso:int
+    Status:str
+
+
+class item_arquivo_grafico(pydantic.BaseModel):
+    tipo_de_arquivo:str
+    contagem_votos:int
+
+
+class retornar_arquivos(pydantic.BaseModel):
+    logs_arquivos:list[item_arquivos_logs]
+    Grafico_Arquivos:list[item_arquivo_grafico]
+
+
+class retornar_comandos(pydantic.BaseModel):
+    ID_do_comando:int
+    Timestamp:str
+    IP_de_origem:str 
+    Comando:str
+    Argumento:str
+
+class ListaComandos(pydantic.BaseModel):
+    log_de_comandos: list[retornar_comandos]
+
+class retornar_geolocalização(pydantic.BaseModel):
+    Latitude:str
+    Longitude:str
+    IP_de_origem:str
+
+
 #"link" root para confirmação que site está rodando
-@app.get("/")
+@app.get("/",summary='Status do Sistema')
 def root():
+    """
+    Verifica a conectividade da API.
+    Retorna um objeto JSON simples confirmando que o Mimico Honeypot está online.
+    """
+
     return {"sistema": "Mimico Honeypot", "status": "online"}
 
 
-#Call dos numeros gerais do banco de dados, stats
-@app.get('/api/stats', response_model=status_modelo)
+#Endpoint dos numeros gerais do banco de dados, stats
+@app.get('/api/stats', response_model=status_modelo,summary='Estatísticas Gerais')
 def pegar_stats():
+    """
+    Obtém métricas consolidadas do banco de dados.
+
+    Retorna:
+    - Total de sessões de ataque.
+    - Contagem de arquivos classificados como malware.
+    - Quantidade de IPs únicos de origem.
+    - Média de 'votos maliciosos' dos arquivos capturados.
+    """
     conn = pegar_conexão_BD()
     if not conn: 
         raise HTTPException(status_code=500, detail='BD não encontrado')
@@ -65,10 +115,18 @@ def pegar_stats():
         media_virus=media_virus
     )
 
-# Enpoint da api, pega informações de arquivos para grafico e logs
-@app.get('/api/arquivos')
+# Endpoint da api, pega informações de arquivos para grafico e logs
+@app.get('/api/arquivos',response_model=retornar_arquivos,summary='Logs e Gráficos de Arquivos')
 def pegar_arquivos():
+    """
+    Recupera dados sobre transferências de arquivos.
+
+    Retorna dois conjuntos de dados:
+    1. Lista detalhada dos últimos 20 arquivos capturados (nome, tamanho, status).
+    2. Dados agregados por 'tipo de arquivo' para geração de gráficos de pizza ou barras.
+    """
     lista_de_arquivos=[]
+    lista_grafico_arquivos=[]
     conn = pegar_conexão_BD()
     if not conn: 
         raise HTTPException(status_code=500, detail='BD não encontrado')
@@ -78,20 +136,44 @@ def pegar_arquivos():
             select Nome_do_arquivo, Tamanho_do_arquivo, Numero_de_votos_malicioso, Status
             from capturas
             order by ID_da_captura desc limit 20''').fetchall()
+
         for linha in ultimos_arquivos:
+            linha=item_arquivos_logs(
+                Nome_do_arquivo=linha[0],
+                Tamanho_do_arquivo=linha[1],
+                Numero_de_votos_malicioso=linha[2],
+                Status=linha[3]
+            )
             lista_de_arquivos.append(linha)
 
-        itens_grafico_arquivos=cursor.execute('''
-            select tipo_de_arquivo, COUNT(*) as count
+        linhas_grafico_arquivos=cursor.execute('''
+            select tipo_de_arquivo, 
+            COUNT(tipo_de_arquivo) as count
             from capturas
             group by tipo_de_arquivo''').fetchall()
+        for linha in linhas_grafico_arquivos:
+            linha=item_arquivo_grafico(
+                tipo_de_arquivo=linha[0],
+                contagem_votos=linha[1]
+            )
+            lista_grafico_arquivos.append(linha)
 
-    return {'Linhas_Arquivos':lista_de_arquivos},{'Grafico_Arquivos':itens_grafico_arquivos}
-
+    return retornar_arquivos(
+        logs_arquivos=lista_de_arquivos,
+        Grafico_Arquivos=lista_grafico_arquivos
+    )
 
 #Endpoint de comandos, pega ultimos 50 comandos
-@app.get('/api/comandos')
+@app.get('/api/comandos',response_model=ListaComandos,summary='Histórico de Comandos')
 def pegar_comandos():
+    """
+    Lista os comandos shell executados pelos atacantes.
+
+    Retorna os últimos 50 registros contendo:
+    - Timestamp da execução.
+    - IP de origem.
+    - O comando e seus argumentos.
+    """
     lista_de_comandos=[]
     conn=pegar_conexão_BD()
     if not conn: 
@@ -105,12 +187,26 @@ def pegar_comandos():
         order by c.ID_do_comando desc limit 50
         ''').fetchall()
         for linha in ultimos_comandos:
+            linha=retornar_comandos(
+                ID_do_comando=linha[0],
+                Timestamp=linha[1],
+                IP_de_origem=linha[2],
+                Comando=linha[3],
+                Argumento=linha[4]
+            )
             lista_de_comandos.append(linha)
 
     return {'log_de_comandos':lista_de_comandos}
 
-@app.get('/api/geo')
+#Api de localizações.
+@app.get('/api/geo',response_model=list[retornar_geolocalização],summary='Mapa de Ameaças')
 def pegar_locais():
+    """
+    Dados de geolocalização para visualização em mapa.
+
+    Retorna uma lista de objetos contendo Latitude, Longitude e IP de origem
+    de todas as conexões registradas.
+    """
     lista_de_locais=[]
     conn=pegar_conexão_BD()
     if not conn: 
@@ -120,11 +216,23 @@ def pegar_locais():
         locais = cursor.execute('SELECT Latitude, longitude AS Longitude, IP_de_origem FROM geolocalização').fetchall()
 
         for local in locais:
+            local=retornar_geolocalização(
+                Latitude=local[0],
+                Longitude=local[1],
+                IP_de_origem=local[2]
+            )
             lista_de_locais.append(local)
 
     return lista_de_locais
 
 
+@app.get('/favicon.ico',summary='Icone')
+def imagem_aba():
+    '''Define o icone da aba.'''
+    return FileResponse(path='icon/icon.png')
+
+
+#Pega porta definda no env, inicia site em localhost+porta. 8080 se não achar nenhuma.
 load_dotenv()
 porta = int(os.getenv("app_porta", 8080))
 print("Iniciando Dashboard M.I.M.I.C")
